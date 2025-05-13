@@ -1,8 +1,6 @@
-### Laboratorio-3-Estructura
-
+### EcoStrike
 #### Requerimientos Funcionales
 
-Requerimientos del juego
 1.	Creación del concepto del juego
 a.	Innovación: El juego debe ser de creación propia, aunque puede estar inspirado en algunos componentes de algún un juego conocido.
 b.	Orientado al usuario: Seleccionar el tema que se quiere abordar y la población objetivo: edad (pueden ser desde niños en edad preescolar hasta adultos mayores) y tipo de usuarios (académicos, expertos o con alguna dificultad de aprendizaje)
