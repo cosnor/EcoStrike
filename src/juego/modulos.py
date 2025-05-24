@@ -17,7 +17,7 @@ class Modulo:
         self.Bomba = Bomba
     
 class ModuloCablesBasicos(Modulo):
-    def __init__(self, Bomba, franja: str, pos:int) -> None:
+    def __init__(self, Bomba, franja: str, pos:int, reglas_config=None) -> None:
         super().__init__(Bomba, pos)
         self.nombre = "Cables Básicos"
         self.cables: List["Cable"]=[]
@@ -31,7 +31,26 @@ class ModuloCablesBasicos(Modulo):
         self.C4 = None
         self.rect_abs = None
         self.modulo = None
-
+        self.reglas_config = reglas_config or {
+            "amarilla": [
+                {"cable_idx": 0, "cable_color": "Rojo", "cb_color": "Rojo"},
+                {"cable_idx": 1, "cable_color": "Azul", "cb_color_idx": 2},
+                {"cb_color_idx": 3}
+            ],
+            "rosada": [
+                {"cable_idx": 3, "cable_color": "Blanco", "cb_color": "Blanco"},
+                {"cable_idx": 2, "cable_color": "Azul", "cb_color_idx": 1},
+                {"cb_color_idx": 2}
+            ],
+            "verde": [
+                {"cable_idx": 1, "cable_color": "Negro", "cb_color": "Negro"},
+                {"cable_idx": 3, "cable_color": "Negro", "cb_color": "Negro"},
+                {"cb_color_idx": 0}
+            ],
+            "blanca": [
+                {"cb_color_idx": 1}
+            ]
+        }
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_cables_simples.png")
         pantalla.blit(fondo, (0, 0))
@@ -104,70 +123,33 @@ class ModuloCablesBasicos(Modulo):
         
 
     def validacion(self, CableBasico):
+        reglas = self.reglas_config.get(self.franja, [])
+        cumplida = False
         #Comprobación de que el cable cortado sea el correcto luego de  presionar enviar o cortar un cable
-        if self.franja == "amarilla": 
-            if self.cables[0].color =="Rojo" and CableBasico.color == "Rojo":  
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[1].color == "Azul" and CableBasico.color == self.cables[2].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[3].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else:             
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()          
-
-        if self.franja == "rosada":
-            if self.cables[3].color == "Blanco" and CableBasico.color == "Blanco":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[2].color == "Azul" and CableBasico.color == self.cables[1].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[2].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()       
-
-        if self.franja == "verde":
-            if self.cables[1].color == "Negro" and CableBasico.color == "Negro":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[3].color == "Negro" and CableBasico.color == "Negro":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[0].color: 
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()  
-
-        if self.franja == "blanca": 
-            if CableBasico.color == self.cables[1].color: 
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion() 
+        for regla in reglas:
+            # Comparar cable por índice y color fijo
+            if "cable_idx" in regla and "cable_color" in regla and "cb_color" in regla:
+                if self.cables[regla["cable_idx"]].color == regla["cable_color"] and CableBasico.color == regla["cb_color"]:
+                    cumplida = True
+                    break
+            # Comparar cable por índice y cb por índice de cable
+            elif "cable_idx" in regla and "cable_color" in regla and "cb_color_idx" in regla:
+                if self.cables[regla["cable_idx"]].color == regla["cable_color"] and CableBasico.color == self.cables[regla["cb_color_idx"]].color:
+                    cumplida = True
+                    break
+            # Comparar solo cb por índice de cable
+            elif "cb_color_idx" in regla:
+                if CableBasico.color == self.cables[regla["cb_color_idx"]].color:
+                    cumplida = True
+                    break
+        if cumplida:
+            self.estado = True
+            print("Modulo desactivado")
+            self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
+        else:
+            print("Equivocación")
+            self.estado_equivocacion = True
+            self.Bomba.notificar_equivocacion()
 
 class ModuloCablesComplejos(Modulo):
     def __init__(self, Bomba, pos:int) -> None:
