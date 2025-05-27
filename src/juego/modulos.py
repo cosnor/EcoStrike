@@ -31,6 +31,7 @@ class ModuloCablesBasicos(Modulo):
         self.rect_abs = None
         self.modulo = None
         
+        
     def regla_se_cumple(self, regla, cable_basico):
         """Devuelve True si la combinación de cables cumple la regla."""
         if regla.get("tipo") == "directa":
@@ -42,6 +43,7 @@ class ModuloCablesBasicos(Modulo):
         elif regla.get("tipo") == "solo_cb":
             return cable_basico.color == self.cables[regla["cb_color_idx"]].color
         return False
+    
     def generar_reglas_congruentes(self):
         reglas_por_franja = {}
         TIPOS = ("directa", "indirecta", "solo_cb")
@@ -50,6 +52,18 @@ class ModuloCablesBasicos(Modulo):
             # 2.1 elige la regla que sí será válida
             tipo_valido = choice(TIPOS)
             reglas = []
+            afirmacion_es_verdadera = choice([True, False])
+
+            default_cortar = 3  # último cable
+            cable_random = randint(0, 3)
+
+            regla = {
+                "tipo": "condicional",
+                "afirmacion_es_verdadera": afirmacion_es_verdadera,
+                "cable_si_afirmacion_verdadera": cable_random
+            }
+
+            reglas.append(regla)
 
             # 2.2 genera la regla verdadera ------------------------------
             if tipo_valido == "directa":
@@ -205,12 +219,24 @@ class ModuloCablesBasicos(Modulo):
     def validacion(self, cable_basico):
             # Obtén todas las reglas de la franja
         reglas = self.reglas_config.get(self.franja, [])
-
+        regla_condicional = next((r for r in reglas if r["tipo"] == "condicional"), None)
         # Separar por tipo y descartar las inválidas de antemano
         directa    = next((r for r in reglas if r["tipo"] == "directa"   and r.get("valida")), None)
         indirecta  = next((r for r in reglas if r["tipo"] == "indirecta" and r.get("valida")), None)
         solo_cb    = next((r for r in reglas if r["tipo"] == "solo_cb"   and r.get("valida")), None)
-
+        if regla_condicional:
+            afirmacion = regla_condicional["afirmacion_es_verdadera"]
+            if afirmacion:
+                # Cortar cable aleatorio predefinido
+                cable_correcto = self.cables[regla_condicional["cable_si_afirmacion_verdadera"]]
+                print(cable_correcto, regla_condicional["cable_si_afirmacion_verdadera"])
+                if cable_basico.color == cable_correcto.color:
+                    self.estado = True
+                    self.Bomba.modulos_restantes -= 1
+                else:
+                    self.estado_equivocacion = True
+                    self.Bomba.notificar_equivocacion()
+                return
         # Evalúa respetando la jerarquía
         if directa and self.regla_se_cumple(directa, cable_basico):
             print("Regla DIRECTA cumplida")
