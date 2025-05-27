@@ -47,7 +47,7 @@ class ModuloCablesBasicos(Modulo):
     def generar_reglas_congruentes(self):
         reglas_por_franja = {}
         TIPOS = ("directa", "indirecta", "solo_cb")
-        # ========== Por cada franja ==========
+        #Por cada franja
         for franja in ["amarilla", "rosada", "verde", "blanca"]:
             # 2.1 elige la regla que sí será válida
             tipo_valido = choice(TIPOS)
@@ -65,7 +65,7 @@ class ModuloCablesBasicos(Modulo):
 
             reglas.append(regla)
 
-            # 2.2 genera la regla verdadera ------------------------------
+            #genera la regla verdadera
             if tipo_valido == "directa":
                 cable_idx = choice(range(len(self.cables)))
                 regla_ok = {
@@ -98,13 +98,13 @@ class ModuloCablesBasicos(Modulo):
 
             reglas.append(regla_ok)
 
-            # 2.3 genera las dos reglas falsas ---------------------------
+            #genera las dos reglas falsas
             tipos_falsos = [t for t in TIPOS if t != tipo_valido]
 
             for t in tipos_falsos:
                 regla_falsa = None
 
-                # —— DIRECTA FALSA ——
+                #DIRECTA FALSA
                 if t == "directa":
                     # mismatcheamos el color del cable para que jamás coincida
                     cable_idx = choice(range(len(self.cables)))
@@ -158,8 +158,8 @@ class ModuloCablesBasicos(Modulo):
 
             # 2.4 guarda por franja
             reglas_por_franja[franja] = reglas
-            print(f"Reglas para franja {franja}: {reglas}")
-
+            #print(f"Reglas para franja {franja}: {reglas}")
+        print(reglas_por_franja)    
         return reglas_por_franja
 
 
@@ -217,7 +217,7 @@ class ModuloCablesBasicos(Modulo):
         
 
     def validacion(self, cable_basico):
-            # Obtén todas las reglas de la franja
+        # Obtén todas las reglas de la franja
         reglas = self.reglas_config.get(self.franja, [])
         regla_condicional = next((r for r in reglas if r["tipo"] == "condicional"), None)
         # Separar por tipo y descartar las inválidas de antemano
@@ -260,7 +260,7 @@ class ModuloCablesBasicos(Modulo):
 
 
 class ModuloCablesComplejos(Modulo):
-    def __init__(self, Bomba, pos:int, reglas_config=None) -> None:
+    def __init__(self, Bomba, pos:int) -> None:
         super().__init__(Bomba, pos)
         self.nombre = "Cables Complejos"
         self.cables: List["Cable"]=[]
@@ -271,19 +271,8 @@ class ModuloCablesComplejos(Modulo):
         self.C3 = None
         self.C4 = None
         self.rect_abs = None
-        self.reglas_config = reglas_config or {
-            "A": [
-                {"color": "Naranja y Morado", "LED": True},
-                {"color": "Morado", "LED": True},
-                {"color": "Naranja", "LED": False},
-                {"color": "Blanco", "LED": True},
-            ],
-            "B": [
-                {"color": "Naranja y Morado", "LED": False},
-                {"color": "Blanco", "LED": True},
-                {"color": "Naranja", "LED": False},
-            ]
-        }
+        self.acciones = ["A", "B", "C1", "C2", "C3", "C4"]  # A=Cortar, B=No cortar, CX=Ir a x enunciado
+
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_cables_complejos.png")
         pantalla.blit(fondo, (0, 0))
@@ -334,6 +323,75 @@ class ModuloCablesComplejos(Modulo):
             pygame.quit()
             exit()
     
+    def generar_reglas_congruentes(self):
+        reglas_por_conexion = {}
+        
+        # Para cada conexión (A y B)
+        for conexion in ["A", "B"]:
+            reglas = []
+            COLORES = ["Naranja", "Morado"]
+            ACCIONES = ["A", "B", "C1", "C2", "C3", "C4"]
+            colorelegidocolor = choice(COLORES)
+            COLORES.remove(colorelegidocolor)  # Evita repetir el color en la misma conexión
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)  # Evita repetir la acción en la misma conexión
+            reglaColor1 = {
+                "tipo": "color",
+                "color": colorelegidocolor,
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglas.append(reglaColor1)
+            reglacolor2 = {
+                "tipo": "color",
+                "color": COLORES[0],
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglas.append(reglacolor2)
+            reglaled = {
+                "tipo": "led",
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglaled)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            COLORES = ["Naranja", "Morado"]
+            colorelegidocolor = choice(COLORES)
+            COLORES.remove(colorelegidocolor)
+            reglacolor1led = {
+                "tipo": "color_led",
+                "color": colorelegidocolor,
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglacolor1led)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglacolor2led = {
+                "tipo": "color_led",
+                "color": COLORES[0],
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglacolor2led)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglatodo = {   
+                "tipo": "todo",
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglatodo)
+            reglas_por_conexion[conexion] = reglas
+        print(f"Reglas generadas para las conexiones: {reglas_por_conexion}")
+        return reglas_por_conexion
+
     #Asignación de cables
     def agregar_cables(self):
         LISTA_COLORES = ["Naranja", "Morado", "Naranja y Morado", "Blanco"]
@@ -347,6 +405,7 @@ class ModuloCablesComplejos(Modulo):
                 self.cables.append(CableComplejo(LISTA_COLORES[indice_elegido], 46,0))
             elif i == 3:
                 self.cables.append(CableComplejo(LISTA_COLORES[indice_elegido], 70,0))
+        self.reglas_config = self.generar_reglas_congruentes()
 
     #Asignación de la conexión de los cables a A y B
     def conectar_cables(self):
@@ -369,20 +428,39 @@ class ModuloCablesComplejos(Modulo):
             self.validacion_cable(CableComplejo)
     
     #Se valida al cortar un cable
-    def validacion_cable(self, CableComplejo):
-        reglas = self.reglas_config.get(CableComplejo.conectado_a, [])
-        cumplida = False
+    def validacion_cable(self, cable_complejo):
+        reglas = self.reglas_config.get(cable_complejo.conectado_a, [])
+        
+        # Revisa todas las reglas para la conexión del cable
         for regla in reglas:
-            color_ok = ("color" not in regla) or (CableComplejo.color == regla["color"])
-            led_ok = ("LED" not in regla) or (CableComplejo.LED == regla["LED"])
-            if color_ok and led_ok:
-                print("Cable cortado con éxito")
-                cumplida = True
-                break
-        if not cumplida:
-            print("Equivocación")
-            self.Bomba.notificar_equivocacion()
-            self.estado_equivocacion = True
+            if regla["tipo"] == "color":
+                if cable_complejo.color == regla["color"]:
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
+            elif regla["tipo"] == "led":
+                if cable_complejo.LED == regla["LED"]:
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
+            elif regla["tipo"] == "color_led":
+                if (cable_complejo.color == regla["color"] and 
+                    cable_complejo.LED == regla["LED"]):
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
+    
+    def ejecutar_accion(self, accion, regla):
+        if accion == "A":
+            return True  # Cortar el cable
+        elif accion == "B":
+            return False  # No cortar el cable
+        else:
+            if regla['value_enunciado'] == False:
+                return False
 
     def validacion_final(self):
         for cable in self.cables:
