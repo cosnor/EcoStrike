@@ -118,7 +118,7 @@ class ModuloCablesBasicos(Modulo):
                         "cb_color": color_real        # da igual, ya falló la 1ª condición
                     }
 
-                # —— INDIRECTA FALSA ——
+                #INDIRECTA FALSA
                 elif t == "indirecta":
                     cable_idx = choice(range(len(self.cables)))
                     color_real = self.cables[cable_idx].color
@@ -132,7 +132,7 @@ class ModuloCablesBasicos(Modulo):
                         "cb_color_idx": cb_idx
                     }
 
-                # —— SOLO_CB FALSA ——
+                #SOLO_CB FALSA
                 else:  # solo_cb
                     # escogemos un índice cuya combinación ya esté cubierta por la regla válida
                     # o mismatcheamos vía 'valida': False para que el validador la ignore
@@ -156,10 +156,9 @@ class ModuloCablesBasicos(Modulo):
                     # nota: si aún se cumpliese, el validador la saltará porque valida=False
                 reglas.append(regla_falsa)
 
-            # 2.4 guarda por franja
+            #guarda por franja
             reglas_por_franja[franja] = reglas
-            #print(f"Reglas para franja {franja}: {reglas}")
-        print(reglas_por_franja)    
+            print(f"Reglas para franja {franja}: {reglas}")   
         return reglas_por_franja
 
 
