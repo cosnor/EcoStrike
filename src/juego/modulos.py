@@ -439,14 +439,14 @@ class ModuloCablesComplejos(Modulo):
                         self.estado_equivocacion = True
                     return 
             elif regla["tipo"] == "led":
-                if cable_complejo.LED == regla["LED"]:
+                if cable_complejo.LED == True:
                     if self.ejecutar_accion(regla["accion"], regla) == False:
                         self.Bomba.notificar_equivocacion() 
                         self.estado_equivocacion = True
                     return 
             elif regla["tipo"] == "color_led":
                 if (cable_complejo.color == regla["color"] and 
-                    cable_complejo.LED == regla["LED"]):
+                    cable_complejo.LED):
                     if self.ejecutar_accion(regla["accion"], regla) == False:
                         self.Bomba.notificar_equivocacion() 
                         self.estado_equivocacion = True
