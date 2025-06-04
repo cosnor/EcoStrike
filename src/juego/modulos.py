@@ -102,9 +102,11 @@ class ModuloCablesBasicos(Modulo):
             CableBasico.set_estado_cortado()
             self.validacion(CableBasico)
         
-
+    ##! Revisar cómo colocar IA en esta parte
     def validacion(self, CableBasico):
         #Comprobación de que el cable cortado sea el correcto luego de  presionar enviar o cortar un cable
+        #CableBasico es el cable cortado
+        # self.cables es la lista de cables del módulo
         if self.franja == "amarilla": 
             if self.cables[0].color =="Rojo" and CableBasico.color == "Rojo":  
                 self.estado = True

@@ -5,6 +5,7 @@ from pygame.locals import *
 from juego.button import *
 from juego.bomba import Bomba
 from juego.modulos import *
+from juego.dialogpanel import dialog
 import os
 import random
 from juego.listadoble import *
@@ -48,6 +49,7 @@ timer.fill(VANILLA)
 
 click = False
 def new_menu():
+    dialogControl = True
     fontbold = pygame.font.Font("src/font/Pixeled.ttf", 10)
     pygame.font.Font.set_bold(fontbold, True)
 
@@ -64,34 +66,41 @@ def new_menu():
     hitboxquitbutton = pygame.Rect(665,380,110,75)
     pos = (0,9)
     while True:
+        espacio_presionado = False
         for event in pygame.event.get():
             pos = pygame.mouse.get_pos()
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
                 running = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                espacio_presionado = True
+
+        if dialogControl:
+            terminado = dialog(screen, clock, espacio_presionado)
+            if terminado:
+                dialogControl = False
+            
+        else: 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if hitboxplaybutton.collidepoint(pos):
-                        # Aquí se debe volver al menú principal
-                        opcJugar()
-                    if hitboxcreditsbutton.collidepoint(pos):
-                        # Aquí se debe volver al menú principal
-                        creditos()
-                    if hitboxquitbutton.collidepoint(pos):
-                        pygame.quit()
-                        exit()
+                if hitboxplaybutton.collidepoint(pos):
+                    opcJugar()
+                elif hitboxcreditsbutton.collidepoint(pos):
+                    creditos()
+                elif hitboxquitbutton.collidepoint(pos):
+                    pygame.quit()
+                    exit()
+            screen.blit(menubg, (0,0))
+            screen.blit(creditsbutton, (0,0))
+            screen.blit(playbutton, (0,0))
+            screen.blit(quitbutton, (0,0))
 
-        screen.blit(menubg, (0,0))
-        screen.blit(creditsbutton, (0,0))
-        screen.blit(playbutton, (0,0))
-        screen.blit(quitbutton, (0,0))
-
-        if hitboxplaybutton.collidepoint(pos):
-            screen.blit(playbuttonh, (0,0))
-        if hitboxcreditsbutton.collidepoint(pos):
-            screen.blit(creditsbuttonh, (0,0))
-        if hitboxquitbutton.collidepoint(pos):
-            screen.blit(quitbuttonh, (0,0))    
+            if hitboxplaybutton.collidepoint(pos):
+                screen.blit(playbuttonh, (0,0))
+            if hitboxcreditsbutton.collidepoint(pos):
+                screen.blit(creditsbuttonh, (0,0))
+            if hitboxquitbutton.collidepoint(pos):
+                screen.blit(quitbuttonh, (0,0))    
 
         clock.tick(60)
         pygame.display.update()
@@ -139,7 +148,7 @@ def opcJugar():
     list2 = DoublyLinkedList()
     font2 = pygame.font.Font("src/font/Pixeled.ttf", 10)
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
-    menubg = pygame.image.load("src/graphics/menu/menubg.png")
+    menubg = pygame.image.load("src/graphics/background/background.png")
     screen.blit(menubg, (0,0))
     for i in [0, 1, 2, 3]:
         list1.add_node(i)
@@ -338,7 +347,6 @@ def game():
     escribir.limpiarArchivo()
     escribir.escribirConfiguracion(str(a1.data))
     escribir.escribirConfiguracion(str(a2.data))
-    image1 = pygame.image.load("src/graphics/Bynary Bomb logo nobg.png")
     bombita = Bomba(duration, int(a1.data), int(a2.data), 10)
     bombita.asignar_modulos()
     
@@ -608,4 +616,8 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
             
             clock.tick(60)
             pygame.display.update()
-new_menu()
+
+if __name__ == "__main__":
+    new_menu()
+
+

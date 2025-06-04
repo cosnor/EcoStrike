@@ -39,6 +39,7 @@ class Bomba():
         timer.blit(fran, (0,0))
 
     def asignar_modulos(self): 
+        #! Cambiar la forma de asignar modulos, habrá más módulos
         if self.numero_modulos == 3:
             LISTA_MODULOS = ["Cables simples", "Cables complejos", "Código"]
         else:
@@ -58,6 +59,7 @@ class Bomba():
 
             for modulo in LISTA_MODULOS_SELECCIONADOS: 
                 if modulo == "Cables simples": 
+                    ## Asignación de franjas aleatorias
                     FRANJAS = ["amarilla", "rosada", "verde", "blanca"]
                     indice_elegido = randint(0, 3)
                     posicion = i
