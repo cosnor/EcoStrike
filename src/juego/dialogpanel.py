@@ -50,15 +50,49 @@ def fade_transition(screen, old_img, new_img, clock, duration=400):
         clock.tick(1000 // delay)
     new_img.set_alpha(None)  # Quita el alpha para futuros blits
 
+def dibujar_boton_omitir(screen):
+    ancho, alto = 90, 32
+    x = screen.get_width() - ancho - 16
+    y = 16
+    color_fondo = (60, 60, 60)
+    color_borde = (180, 180, 180)
+    color_texto = (220, 220, 220)
+    pygame.draw.rect(screen, color_fondo, (x, y, ancho, alto), border_radius=8)
+    pygame.draw.rect(screen, color_borde, (x, y, ancho, alto), 2, border_radius=8)
+    fuente_omitir = pygame.font.SysFont("arial", 20)
+    texto = fuente_omitir.render("Omitir", True, color_texto)
+    screen.blit(texto, (x + 16, y + 6))
+    return pygame.Rect(x, y, ancho, alto)
+
 def dialog(screen, clock, espacio_presionado):
     global indice_letra, ultimo_update, texto_actual, indice_dialogo
 
-    # Mantén el fondo anterior entre llamadas
     if not hasattr(dialog, "fondo_actual"):
         dialog.fondo_actual = pygame.image.load(fondos_dialogo[indice_dialogo])
 
     fondo_actual = dialog.fondo_actual
 
+    # --- Botón omitir ---
+    mouse_pos = pygame.mouse.get_pos()
+    mouse_click = pygame.mouse.get_pressed()[0]
+
+    # Dibuja fondo y diálogo
+    screen.blit(fondo_actual, (0,0))
+
+    ahora = pygame.time.get_ticks()
+    if indice_letra < len(texto_actual) and ahora - ultimo_update > tiempo_entre_letras:
+        indice_letra += 1
+        ultimo_update = ahora
+
+    texto_mostrado = texto_actual[:indice_letra]
+    dibujar_dialogo(screen, texto_mostrado)
+
+    # Dibuja el botón omitir y detecta clic
+    rect_omitir = dibujar_boton_omitir(screen)
+    if rect_omitir.collidepoint(mouse_pos) and mouse_click:
+        return True
+
+    # Avance normal con espacio
     if espacio_presionado:
         if indice_dialogo < len(dialogs) - 1:
             fondo_anterior = fondo_actual
@@ -71,16 +105,6 @@ def dialog(screen, clock, espacio_presionado):
             fondo_actual = fondo_nuevo
         else:
             return True
-
-    screen.blit(fondo_actual, (0,0))
-
-    ahora = pygame.time.get_ticks()
-    if indice_letra < len(texto_actual) and ahora - ultimo_update > tiempo_entre_letras:
-        indice_letra += 1
-        ultimo_update = ahora
-
-    texto_mostrado = texto_actual[:indice_letra]
-    dibujar_dialogo(screen, texto_mostrado)
 
     pygame.display.flip()
     clock.tick(FPS)

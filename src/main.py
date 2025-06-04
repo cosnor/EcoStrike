@@ -161,61 +161,20 @@ def opcJugar():
     b2 = list2.head.prev
     n2 = list2.head.next
     while True:
-        #screen.fill(GOLDEN)
         screen.blit(fondo, (0,0))
         menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
         menu_button.draw()
-        play_button = Button(screen, 620, 405, 200, 50, "JUGAR", (0,0,0), 20) #150
+        play_button = Button(screen, 620, 225, 200, 50, "CREAR", (0,0,0), 20) #150
         play_button.draw()
-        manual_button = Button(screen, 180, 405, 200, 50, "MANUAL", (0,0,0), 20)
-        manual_button.draw()
+        play_button2 = Button(screen, 620, 375, 200, 50, "ENTRAR", (0,0,0), 20) #150
+        play_button2.draw()
         font1 = pygame.font.Font("src/font/Pixeled.ttf", 20)
-        text_surface = font1.render("AJUSTE DE BOMBA", True, (255, 255, 255))
-        screen.blit(text_surface, (150, 135))
-        ##### 350
-        atras1_button = Button(screen, 580, 165, 40, 40, "\ ", (0, 0, 0), 20) #300, 150
-        adelante1_button = Button(screen, 820, 165, 40, 40, " /", (0, 0, 0), 20) #650, 150
-        adelante1_button.draw()
-        atras1_button.draw()
-        atras2_button = Button(screen, 580, 290, 40, 40, "\ ", (0, 0, 0), 20)
-        adelante2_button = Button(screen, 820, 290, 40, 40, " /", (0, 0, 0), 20)
-        adelante2_button.draw()
-        atras2_button.draw()
-        #listica de errores
-        textE = font1.render("ERRORES", True, (0, 0, 0))
-        screen.blit(textE, (655, 110))  
-        text_1 = font1.render(str(a1.data), True, (0, 0, 0))
-        screen.blit(text_1, (710, 155)) #495
-        if a1.prev == None:
-            text11 = font2.render("", True, (0, 0, 0))
-            screen.blit(text11, (690, 170)) #20
-        else:
-            text11 = font2.render(str(a1.prev.data), True, (0, 0, 0))
-            screen.blit(text11, (690, 170))
-        if a1.next == None:
-            text21 = font2.render("", True, (0, 0, 0))
-            screen.blit(text21, (740, 170)) #30
-        else:
-            text21 = font2.render(str(a1.next.data), True, (0, 0, 0))
-            screen.blit(text21, (740, 170))
-
-        #listica de modulos
-        textM = font1.render("MODULOS", True, (0, 0, 0))
-        screen.blit(textM, (655, 235))
-        text_2 = font1.render(str(a2.data), True, (0, 0, 0))
-        screen.blit(text_2, (710, 280))
-        if a2.prev == None:
-            text12 = font2.render("", True, (0, 0, 0))
-            screen.blit(text12, (690, 295))
-        else:
-            text12 = font2.render(str(a2.prev.data), True, (0, 0, 0))
-            screen.blit(text12, (690, 295))
-        if a2.next == None:
-            text22 = font2.render("", True, (0, 0, 0))
-            screen.blit(text22, (740, 295))
-        else:
-            text22 = font2.render(str(a2.next.data), True, (0, 0, 0))
-            screen.blit(text22, (740, 295))
+        text_surface = font1.render("¿PREPARADO?", True, (255, 255, 255))
+        screen.blit(text_surface, (165, 135))
+        textE = font1.render("CREA UNA SALA", True, (0, 0, 0))
+        screen.blit(textE, (605, 150))  
+        textM = font1.render("ENTRA A UNA SALA", True, (0, 0, 0))
+        screen.blit(textM, (575, 300))
     
         click = False
         for event in pygame.event.get():
@@ -229,47 +188,18 @@ def opcJugar():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     click = True
-            play_button.handle_event(event, lambda: game())
+            play_button.handle_event(event, lambda: create_room())
+            play_button2.handle_event(event, lambda: join_room())
             menu_button.handle_event(event, lambda: new_menu())
-            manual_button.handle_event(event, lambda: archivo())
-            adelante1_button.handle_event(event, lambda: moverLista1(True))
-            atras1_button.handle_event(event, lambda: moverLista1(False))
-            adelante2_button.handle_event(event, lambda: moverLista2(True))
-            atras2_button.handle_event(event, lambda: moverLista2(False))
 
         pygame.display.update()
         clock.tick(60)
 
-def moverLista1(modo): #modo: False-Retroceso, True-Avance
-    global a1
-    if modo:
-        if a1.next != None:
-            a1 = a1.next
-    else:
-        if a1.prev !=None:
-            a1 = a1.prev
-def moverLista2(modo): #modo: False-Retroceso, True-Avance
-    global a2
-    if modo:
-        if a2.next != None:
-            a2 = a2.next
-    else:
-        if a2.prev !=None:
-            a2 = a2.prev
+def create_room():
+    pass 
 
-def archivo():
-    nombre_archivo = 'src/files/MANUAL DE DESACTIVACIÓN.pdf'
-    ruta_proyecto = os.path.abspath(os.curdir)
-# Obtiene la ruta completa del archivo dentro de la carpeta del proyecto
-    ruta_archivo = os.path.join(ruta_proyecto, nombre_archivo)
-    if os.path.exists(ruta_archivo):
-    # Abre el archivo PDF en la aplicación predeterminada del sistema
-        if os.name == 'nt':
-            os.startfile(ruta_archivo)
-        elif os.name == 'posix':
-            subprocess.Popen(['open', archivo_pdf])
-    else:
-        print(f'El archivo {ruta_archivo} no existe.')
+def join_room():
+    pass
 
 def creditos():
     creditos_movibles = [
