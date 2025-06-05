@@ -8,6 +8,8 @@ from juego.dialogpanel import dialog
 from juego.listadoble import *
 from juego.frontendfunctions import varias_lineas, dibujar_jugadores, centrar_texto
 import time
+import network
+import ipaddress
 
 pygame.init()
 screen = pygame.display.set_mode((1000,562))
@@ -180,6 +182,10 @@ def opcJugar():
         clock.tick(60)
 
 def create_room():
+    partida_iniciada = False
+
+    ip = network.start_server()
+    network.connect_to_server_as_host()
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
     menubg = pygame.image.load("src/graphics/background/background.png")
     screen.blit(menubg, (0,0))
@@ -195,13 +201,24 @@ def create_room():
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
         rectipo = pygame.Rect(150, 400, 250, 40)        
-        textoIP2 = "127.0.0.0"
+        textoIP2 = ip
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
         screen.blit(textE, (625, 150))
-        dibujar_jugadores(screen, font2, ["1", "2", "3", "4"], 635, 200)
-        inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", (0,0,0), 20) 
+        jugadores_conectados = []
+        for i in range(network.connected_count):
+            label = f"Jugador {i+1}"
+            if i+1 == network.player_number:
+                label += " (You)"
+            jugadores_conectados.append(label)
+
+        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
+
+        puede_iniciar = network.connected_count >= 2
+        color_boton = (0, 0, 0) if puede_iniciar else (100, 100, 100)  # Gris si no puede iniciar
+        inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", color_boton, 20)
         inicio_game_button.draw()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -212,7 +229,14 @@ def create_room():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     menu_button.handle_event(event, lambda: new_menu())
-                    inicio_game_button.handle_event(event, lambda: game())
+                    if puede_iniciar:
+                        print("[🎲] Iniciando partida...")
+                        if not partida_iniciada:
+                            inicio_game_button.handle_event(event, lambda: iniciar_partida())
+        def iniciar_partida():
+            nonlocal partida_iniciada
+            partida_iniciada = True
+            network.trigger_role_assignment()
 
         pygame.display.update()
         clock.tick(60)
@@ -278,9 +302,7 @@ def join_room():
                 nuevo_texto, enter_presionado = obtener_ip_input(event, active, user_text)
                 user_text = nuevo_texto
                 if enter_presionado:
-                    ip_ingresada = user_text
-                    print(f"IP ingresada: {ip_ingresada}")
-                    preroom()  
+                    preroom(user_text)  
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -289,18 +311,32 @@ def join_room():
                     else:
                         active = False
                     color = color_active if active else color_inactive
-                    
                     menu_button.handle_event(event, lambda: new_menu())
-                    if ip_ingresada:  # Solo permite entrar si hay una IP ingresada
-                        inicio_game_button.handle_event(event, lambda: room())
+                    inicio_game_button.handle_event(event, lambda: preroom(user_text))
 
         pygame.display.update()
         clock.tick(60)
 
-def preroom():
-    room()
+def es_ip_valida(ip: str) -> bool:
+    try:
+        ipaddress.IPv4Address(ip)
+        return True
+    except ipaddress.AddressValueError:
+        return False
 
-def room():
+def preroom(ip_ingresada):
+    """Función que se llama al presionar el botón de entrar a la sala"""
+    if not ip_ingresada or not es_ip_valida(ip_ingresada):
+        # Si la IP no es válida, muestra un diálogo de error
+        print("IP inválida. Por favor, ingresa una IP válida.")
+        return
+    room(ip_ingresada)
+
+def room(ip):
+    conectado = network.connect_to_server(ip)
+    if not conectado:
+        print("No se pudo conectar al servidor. Verifica la IP e intenta nuevamente.")
+        return
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
     menubg = pygame.image.load("src/graphics/background/background.png")
     screen.blit(menubg, (0,0))
@@ -316,11 +352,24 @@ def room():
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
         rectipo = pygame.Rect(150, 400, 250, 40)        
-        textoIP2 = "127.0.0.0"
+        textoIP2 = ip
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
         screen.blit(textE, (625, 150))
-        dibujar_jugadores(screen, font2, ["1", "2", "3", "4"], 635, 200)
+        jugadores_conectados = []
+        player_num = getattr(network, "player_number", None)
+        count = getattr(network, "connected_count", 1)
+
+        for i in range(count):
+            label = f"Jugador {i+1}"
+            if player_num is not None and i+1 == player_num:
+                label += " (You)"
+            jugadores_conectados.append(label)
+
+        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
+
+        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -677,6 +726,24 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
             
             clock.tick(60)
             pygame.display.update()
+
+#Solo es para probar que el de manual hace algo, luego se cambia esta función por la que muestre el manual real
+import os
+import platform
+def show_manual():
+    # Ruta absoluta basada en la ubicación del archivo actual (main.py)
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    manual_path = os.path.join(base_path, "files", "MANUAL DE DESACTIVACIÓN.pdf")
+
+    if platform.system() == "Windows":
+        os.startfile(manual_path)
+    elif platform.system() == "Darwin":  # macOS
+        os.system(f"open '{manual_path}'")
+    else:  # Linux
+        os.system(f"xdg-open '{manual_path}'")
+
+network.on_bomb_role = game
+network.on_manual_role = show_manual
 
 if __name__ == "__main__":
     new_menu()
