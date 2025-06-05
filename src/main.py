@@ -17,6 +17,7 @@ import json
 
 import asyncio
 import websockets
+from network import broadcast_game_over
 
 pygame.init()
 screen = pygame.display.set_mode((1000,562))
@@ -245,7 +246,7 @@ def opcJugar():
         clock.tick(60)
         
 def crear_bomba():
-    
+    global bombita
     bombita = Bomba(300, 3, 3, 10)
     bombita.asignar_modulos() # REGLAS
     for modulo in bombita.modulos:
@@ -675,7 +676,7 @@ def show_manual():
     while True:
         screen.blit(menubg, (0,0))
         screen.blit(fondo_manual, (0,0))
-        
+        menu_button.draw()
         # Dibuja los textos con scroll
         altura_total1 = varias_lineas_con_scroll(screen, font_manual, lineas_texto1, rect_texto1, scroll_y, header_text="MANUAL DEL ACTUADOR", header_font=header_font, subheader_text="Cables Simples"  ,subheader_font=subheader_font)
         altura_total2 = varias_lineas_con_scroll(screen, font_manual, lineas_texto2, rect_texto2, scroll_y, None, None, subheader_text="Cables Complejos", subheader_font=subheader_font)
@@ -1012,8 +1013,12 @@ def game():
         bombita.equivocaciones_limite()
         bombita.victoria()
         if bombita.estado == "Detonada":
+            # Notificar a todos los jugadores que la bomba explotó 
+            broadcast_game_over(False)
             terminarM(False, str(a2), time_text, str(bombita.equivocaciones), str(a1))
         if bombita.estado == "Desactivada":
+            # Notificar a todos los jugadores que ganaron
+            broadcast_game_over(True)
             terminarM(True, str(a2), time_text, str(bombita.equivocaciones), str(a1))
         # Formatear el tiempo restante en formato mm:ss
         minutes = int(remaining_time // 60)

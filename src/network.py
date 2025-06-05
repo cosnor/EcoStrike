@@ -1,6 +1,7 @@
 import socket
 import threading
 import random
+import json  # Importar json para manejar mensajes en formato JSON
 
 HOST = '0.0.0.0'
 PORT = 12345
@@ -196,3 +197,43 @@ def connect_to_server(server_ip):
         print(f"[❌] No se pudo conectar: {e}")
         return False
     return True
+messages_queue = []  # Cola para mensajes pendientes
+
+def broadcast_message(message):
+    """Envía un mensaje a todos los clientes conectados"""
+    with lock:
+        for client, _, _ in clients:
+            try:
+                client.send(message.encode())
+            except Exception as e:
+                print(f"[❌] Error enviando mensaje a cliente: {e}")
+
+def get_latest_message():
+    """Obtiene el último mensaje recibido"""
+    global messages_queue
+    try:
+        if client_socket:
+            data = client_socket.recv(1024).decode()
+            try:
+                return json.loads(data)
+            except json.JSONDecodeError:
+                return None
+    except:
+        return None
+    
+def broadcast_game_over(won: bool):
+    """Envía el estado final del juego a todos los jugadores"""
+    message = {
+        "type": "game_over",
+        "won": won
+    }
+    # Enviar mensaje a todos los clientes
+    broadcast_message(json.dumps(message))
+
+def check_game_over():
+    """Verifica si hay mensaje de fin de juego"""
+    # Revisar mensajes pendientes
+    message = get_latest_message()
+    if message and "type" in message and message["type"] == "game_over":
+        return message["won"]
+    return None
