@@ -30,6 +30,7 @@ class ModuloCablesBasicos(Modulo):
         self.C4 = None
         self.rect_abs = None
         self.modulo = None
+        self.reglas_config = None
         
         
     def regla_se_cumple(self, regla, cable_basico):
@@ -54,7 +55,6 @@ class ModuloCablesBasicos(Modulo):
             reglas = []
             afirmacion_es_verdadera = choice([True, False])
 
-            default_cortar = 3  # último cable
             cable_random = randint(0, 3)
 
             regla = {
@@ -158,7 +158,11 @@ class ModuloCablesBasicos(Modulo):
 
             #guarda por franja
             reglas_por_franja[franja] = reglas
-            print(f"Reglas para franja {franja}: {reglas}")   
+            orden_tipos = ["condicional","directa", "indirecta", "solo_cb"]
+            reglas_ordenadas = []
+            for tipo in orden_tipos:
+                reglas_tipo = [r for r in reglas if r.get("tipo") == tipo]
+                reglas_ordenadas.extend(reglas_tipo) 
         return reglas_por_franja
 
 
@@ -271,6 +275,7 @@ class ModuloCablesComplejos(Modulo):
         self.C4 = None
         self.rect_abs = None
         self.acciones = ["A", "B", "C1", "C2", "C3", "C4"]  # A=Cortar, B=No cortar, CX=Ir a x enunciado
+        self.reglas_config = None
 
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_cables_complejos.png")
@@ -388,7 +393,11 @@ class ModuloCablesComplejos(Modulo):
             }
             reglas.append(reglatodo)
             reglas_por_conexion[conexion] = reglas
-        print(f"Reglas generadas para las conexiones: {reglas_por_conexion}")
+        reglas_por_conexion[conexion] = reglas
+        # Filtra y muestra solo las reglas que empiezan con C
+        reglas_c = {k: [r for r in v if r["accion"].startswith("C")] 
+                for k, v in reglas_por_conexion.items()}
+        print(f"Reglas que empiezan con C: {reglas_c}") #xxxxx
         return reglas_por_conexion
 
     #Asignación de cables

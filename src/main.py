@@ -9,6 +9,12 @@ import os
 import random
 from juego.listadoble import *
 import time
+import asyncio
+import threading
+import json
+
+import asyncio
+import websockets
 
 pygame.init()
 screen = pygame.display.set_mode((1000,562))
@@ -47,6 +53,17 @@ module5.fill(VANILLA)
 timer.fill(VANILLA)
 
 click = False
+
+# Create a function to run the asyncio event loop in a separate thread
+def run_async_loop(loop, rules_coro):
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(rules_coro)
+    except Exception as e:
+        print(f"Error in async loop: {e}")
+    finally:
+        loop.close()
+
 def new_menu():
     fontbold = pygame.font.Font("src/font/Pixeled.ttf", 10)
     pygame.font.Font.set_bold(fontbold, True)
@@ -72,8 +89,28 @@ def new_menu():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if hitboxplaybutton.collidepoint(pos):
-                        # Aquí se debe volver al menú principal
+                        # CREA UNA BOMBA GLOBAL
+                        global bombita 
+                        bombita = Bomba(300, 3, 3, 10)
+                        bombita.asignar_modulos() # REGLAS
+                        for modulo in bombita.modulos:
+                            if modulo.nombre == "Cables Básicos":
+                                reglasBasico = modulo.reglas_config
+                                reglasBasicoOrganizado = organizar_json_cables_simples(reglasBasico)
+                                
+                            elif modulo.nombre == "Cables Complejos":
+                                reglasCompleja = modulo.reglas_config
+                                reglasComplejaOrganizado = organizar_json_cables_complejos(reglasCompleja)
+                        # Crear un loop de eventos asyncio
+                        new_loop = asyncio.new_event_loop()
+                        rules_thread = threading.Thread(
+                            target=run_async_loop,
+                            args=(new_loop, rules(reglasBasicoOrganizado, reglasComplejaOrganizado))
+                        )
+                        rules_thread.daemon = True  # Thread will close when main program exits
+                        rules_thread.start()
                         opcJugar()
+                        
                     if hitboxcreditsbutton.collidepoint(pos):
                         # Aquí se debe volver al menú principal
                         creditos()
@@ -95,6 +132,153 @@ def new_menu():
 
         clock.tick(60)
         pygame.display.update()
+
+
+def organizar_json_cables_complejos(data):
+
+    def agrupar_por_acciones_c(data):
+        # Diccionario para almacenar las agrupaciones por acción
+        agrupaciones = {}
+        
+        # Procesar cada letra (A, B, etc.)
+        for letra, entradas in data.items():
+            # Filtrar solo entradas con acciones que empiecen por 'C'
+            entradas_c = [entrada for entrada in entradas if entrada.get('accion', '').startswith('C')]
+            
+            # Agrupar por acción
+            for entrada in entradas_c:
+                accion = entrada['accion']
+                
+                # Inicializar la agrupación si no existe
+                if accion not in agrupaciones:
+                    agrupaciones[accion] = {}
+                
+                # Agregar la entrada a la letra correspondiente
+                if letra not in agrupaciones[accion]:
+                    agrupaciones[accion][letra] = []
+                
+                agrupaciones[accion][letra].append(entrada)
+        
+        # Convertir cada agrupación a string JSON
+        jsons_agrupados = {}
+        
+        for accion, datos_accion in agrupaciones.items():
+            # Crear el JSON para esta agrupación
+            json_string = json.dumps(datos_accion, separators=(',', ':'), ensure_ascii=False)
+            # Agregar escapes a las comillas
+            json_escaped = json_string.replace('"', r'\"')
+            jsons_agrupados[accion] = json_escaped
+        
+        return jsons_agrupados
+
+    # Aplicar la función
+    jsons_agrupados = agrupar_por_acciones_c(data)
+    return(jsons_agrupados)
+
+   
+def organizar_json_cables_simples(data):
+    # Orden deseado para los tipos
+    orden_tipos = ['condicional', 'directa', 'indirecta', 'solo_cb']
+
+    # Función para reorganizar una lista según el orden de tipos
+    def reorganizar_por_tipo(lista):
+        # Crear un diccionario para agrupar por tipo
+        por_tipo = {}
+        for item in lista:
+            tipo = item['tipo']
+            if tipo not in por_tipo:
+                por_tipo[tipo] = []
+            por_tipo[tipo].append(item)
+        
+        # Reorganizar según el orden deseado
+        lista_ordenada = []
+        for tipo in orden_tipos:
+            if tipo in por_tipo:
+                lista_ordenada.extend(por_tipo[tipo])
+        
+        return lista_ordenada
+
+    # Aplicar la reorganización a cada clave del diccionario
+    data_reorganizado = {}
+    for clave, lista in data.items():
+        data_reorganizado[clave] = reorganizar_por_tipo(lista)
+
+    # Diccionario para guardar cada color como string JSON
+    jsons_separados = {}
+
+    # Separar cada color en su propio string JSON
+    for color, datos in data_reorganizado.items():
+        # Crear el contenido JSON para este color
+        json_color = {color: datos}
+        
+        # Convertir a string JSON
+        json_string = json.dumps(json_color, ensure_ascii=False)
+        json_escaped = json_string.replace('"', r'\"')
+        # Guardar en el diccionario
+        jsons_separados[color] = json_escaped
+    return jsons_separados
+
+HOST = '192.168.1.26'  # Cambiar por IP real del host
+PORT = 8765
+
+async def rules(simple, complejo):
+    url = "ws://192.168.1.26:8765"
+    
+    try:
+        async with websockets.connect(url, ping_interval=None) as websocket:
+            print("🔌 Connected to server")
+            
+            # Crear una tarea en segundo plano para recibir mensajes
+            async def receive_messages():
+                while True:
+                    try:
+                        global responses
+                        responses = []
+                        response = await websocket.recv()
+                        responses.append(response)
+                        print("\n📥 Received instructions:")
+                        print(f"{response}")
+                        print("-" * 50 + "\n")
+                        
+                        # Si recibimos señal de finalización
+                        if response == "COMPLETED" or response == "ERROR":
+                            return
+                            
+                    except websockets.exceptions.ConnectionClosed:
+                        print("Connection closed by server")
+                        return
+                    except Exception as e:
+                        print(f"Error receiving message: {e}")
+                        return
+            
+            # Enviar reglas y mantener conexión
+            try:
+                # Primero enviar todas las reglas
+                for key, value in simple.items():
+                    await websocket.send("\""+value+"\"")
+                    await asyncio.sleep(0.1)  # Pequeña pausa entre envíos
+                
+                for key, value in complejo.items():
+                    await websocket.send("\""+value+"\"")
+                    await asyncio.sleep(0.1)  # Pequeña pausa entre envíos
+                
+                # Iniciar tarea de recepción
+                receiver_task = asyncio.create_task(receive_messages())
+                
+                # Esperar a que termine la tarea de recepción
+                await receiver_task
+                
+            except websockets.exceptions.ConnectionClosed:
+                print("Connection closed while sending")
+            except Exception as e:
+                print(f"Error while sending: {e}")
+                
+    except websockets.exceptions.ConnectionError:
+        print("❌ Could not connect to the server")
+    except Exception as e:
+        print(f"❌ An error occurred: {e}")
+
+
 def main_menu():
     while True:
         screen.fill(GOLDEN)
@@ -339,8 +523,7 @@ def game():
     escribir.escribirConfiguracion(str(a1.data))
     escribir.escribirConfiguracion(str(a2.data))
     image1 = pygame.image.load("src/graphics/Bynary Bomb logo nobg.png")
-    bombita = Bomba(duration, int(a1.data), int(a2.data), 10)
-    bombita.asignar_modulos()
+  
     
     pos = [module1, module2, module3, module4, module5]
     
