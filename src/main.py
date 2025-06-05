@@ -8,7 +8,7 @@ from juego.bomba import Bomba
 from juego.modulos import *
 from juego.dialogpanel import dialog
 from juego.listadoble import *
-from juego.frontendfunctions import varias_lineas, dibujar_jugadores, centrar_texto
+from juego.frontendfunctions import *
 import time
 
 pygame.init()
@@ -86,7 +86,8 @@ def new_menu():
             # Mover la lógica de clicks aquí dentro
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if hitboxplaybutton.collidepoint(pos):
-                    opcJugar()
+                    # opcJugar()
+                    show_manual()
                 elif hitboxcreditsbutton.collidepoint(pos):
                     album()
                 elif hitboxquitbutton.collidepoint(pos):
@@ -499,20 +500,60 @@ def coleccion():
         pygame.display.update()
         clock.tick(60)
 
-import os
-import platform
+
 def show_manual():
-    # Ruta absoluta basada en la ubicación del archivo actual (main.py)
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    manual_path = os.path.join(base_path, "files", "MANUAL DE DESACTIVACIÓN.pdf")
+    menubg = pygame.image.load("src/graphics/background/background_dialog_11.png")
+    fondo_manual = pygame.image.load("src/graphics/background/manualbg.png")
+    font_manual = pygame.font.Font("src/font/Montserrat-Regular.ttf", 9)
+    header_font = pygame.font.Font("src/font/Pixeled.ttf", 18)
+    subheader_font = pygame.font.Font("src/font/Montserrat-Regular.ttf", 15)
+    screen.blit(menubg, (0,0))
+    menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
+    menu_button.draw()
 
-    if platform.system() == "Windows":
-        os.startfile(manual_path)
-    elif platform.system() == "Darwin":  # macOS
-        os.system(f"open '{manual_path}'")
-    else:  # Linux
-        os.system(f"xdg-open '{manual_path}'")
+    texto1 = ['Para C1: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El cambio climático solo afecta a las regiones polares.\nSolo los gobiernos pueden hacer algo frente al cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Las emisiones de dióxido de carbono son la principal causa del cambio climático.\nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos.\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C4: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La energía nuclear no emite gases de efecto invernadero durante su operación:\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos:\nLos aerosoles naturales tienen un impacto mayor que el calentamiento global.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C3: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima. \nLas emisiones de dióxido de carbono son la principal causa del cambio climático. \nEl calentamiento global solo afecta a las regiones polares. \nSolo los gobiernos pueden hacer algo frente al cambio climático. \nLa deforestación contribuye al cambio climático. \nReciclar papel ayuda a conservar los árboles. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nEl plástico es biodegradable en menos de 10 años. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nEl deshielo de los polos puede elevar el n', 'Para C2: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLas energías renovables no generan ningún tipo de contaminación.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El calentamiento global es un mito creado por científicos:\nEl deshielo de los polos puede elevar el nivel del mar.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La deforestación contribuye al cambio climático:\nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)']
+    texto2 =texto1
+    
+    texto1 = lista_a_texto(texto1)
+    texto2 = lista_a_texto(texto2)
+    
+    # Crear dos rectángulos para el texto
+    rect_texto1 = pygame.Rect(75, 70, 400, 425)  # Rectángulo izquierdo
+    rect_texto2 = pygame.Rect(555, 75, 360, 425)  # Rectángulo derecho
+    
+    # Dividir el texto en líneas
+    lineas_texto1 = texto1.split('\n')
+    lineas_texto2 = texto2.split('\n')
 
+    scroll_y = 0
+    scroll_speed = 20
+
+    while True:
+        screen.blit(fondo_manual, (0,0))
+        
+        # Dibuja los textos con scroll
+        altura_total1 = varias_lineas_con_scroll(screen, font_manual, lineas_texto1, rect_texto1, scroll_y, header_text="MANUAL DEL ACTUADOR", header_font=header_font, subheader_text="Cables Simples"  ,subheader_font=subheader_font)
+        altura_total2 = varias_lineas_con_scroll(screen, font_manual, lineas_texto2, rect_texto2, scroll_y, None, None, subheader_text="Cables Complejos", subheader_font=subheader_font)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    menu_button.handle_event(event, lambda: new_menu())
+                # Scroll con rueda del mouse
+                elif event.button == 4:  # Scroll arriba
+                    scroll_y = max(0, scroll_y - scroll_speed)
+                elif event.button == 5:  # Scroll abajo
+                    max_scroll = max(altura_total1, altura_total2) - rect_texto1.height
+                    scroll_y = min(max_scroll, scroll_y + scroll_speed)
+        
+        pygame.display.update()
+        clock.tick(60)
 
 def creditos():
     creditos_movibles = [
