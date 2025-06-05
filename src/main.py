@@ -11,7 +11,7 @@ import time
 
 pygame.init()
 screen = pygame.display.set_mode((1000,562))
-pygame.display.set_caption("Binary Bomb Squad")
+pygame.display.set_caption("EcoStrike")
 icon = pygame.image.load("src/graphics/icono.png")
 pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
@@ -36,6 +36,7 @@ module3 = pygame.Surface((202,202))
 module4 = pygame.Surface((202,202))
 module5 = pygame.Surface((202,202))
 timer = pygame.Surface((202,202))
+album_bg = pygame.Surface((680,460))
 
 frame.fill(GREEN)
 module1.fill(VANILLA)
@@ -45,13 +46,15 @@ module4.fill(VANILLA)
 module5.fill(VANILLA)
 timer.fill(VANILLA)
 
+bombas_desactivadas = 6
+
 click = False
 tutorial_shown = False  # Variable global para controlar si ya se mostró el tutorial
 def new_menu():
     global tutorial_shown
-    dialogControl = not tutorial_shown  
+    dialogControl = not tutorial_shown
     if not tutorial_shown:
-        tutorial_shown = True  
+        tutorial_shown = True
 
     fontbold = pygame.font.Font("src/font/Pixeled.ttf", 10)
     pygame.font.Font.set_bold(fontbold, True)
@@ -59,14 +62,14 @@ def new_menu():
     menubg = pygame.image.load("src/graphics/menu/menubg.png")
     playbutton = pygame.image.load("src/graphics/menu/playbutton.png")
     playbuttonh = pygame.image.load("src/graphics/menu/playbuttonh.png")
-    creditsbutton = pygame.image.load("src/graphics/menu/creditsbutton.png")
-    creditsbuttonh = pygame.image.load("src/graphics/menu/creditsbuttonh.png")
-    quitbutton = pygame.image.load("src/graphics/menu/quitbutton.png")
-    quitbuttonh = pygame.image.load("src/graphics/menu/quitbuttonh.png")
+    creditsbutton = pygame.image.load("src/graphics/menu/albumbutton.png")
+    creditsbuttonh = pygame.image.load("src/graphics/menu/albumbuttonh.png")
+    quitbutton = pygame.image.load("src/graphics/menu/exitbutton.png")
+    quitbuttonh = pygame.image.load("src/graphics/menu/exitbuttonh.png")
 
-    hitboxplaybutton = pygame.Rect(220,390,105,70)
-    hitboxcreditsbutton = pygame.Rect(440,380,85,80)
-    hitboxquitbutton = pygame.Rect(665,380,110,75)
+    hitboxcreditsbutton = pygame.Rect(250,390,120,70)
+    hitboxplaybutton = pygame.Rect(440,380,125,90)
+    hitboxquitbutton = pygame.Rect(635,380,110,75)
     pos = pygame.mouse.get_pos()
 
     while True:
@@ -83,7 +86,7 @@ def new_menu():
                 if hitboxplaybutton.collidepoint(pos):
                     opcJugar()
                 elif hitboxcreditsbutton.collidepoint(pos):
-                    creditos()
+                    album()
                 elif hitboxquitbutton.collidepoint(pos):
                     pygame.quit()
                     exit()
@@ -103,7 +106,7 @@ def new_menu():
             if hitboxcreditsbutton.collidepoint(pos):
                 screen.blit(creditsbuttonh, (0,0))
             if hitboxquitbutton.collidepoint(pos):
-                screen.blit(quitbuttonh, (0,0))    
+                screen.blit(quitbuttonh, (0,0))
 
         clock.tick(60)
         pygame.display.update()
@@ -133,7 +136,7 @@ def main_menu():
                 if event.button == 1:
                     click = True
             play_button.handle_event(event, lambda: opcJugar())
-            credits_button.handle_event(event, lambda: creditos())
+            credits_button.handle_event(event, lambda: album())
             exit_button.handle_event(event, lambda: exit())
 
         pygame.display.update()
@@ -156,10 +159,10 @@ def opcJugar():
         text_surface = font1.render("¿PREPARADO?", True, (255, 255, 255))
         screen.blit(text_surface, (165, 135))
         textE = font1.render("CREA UNA SALA", True, (0, 0, 0))
-        screen.blit(textE, (605, 150))  
+        screen.blit(textE, (605, 150))
         textM = font1.render("ENTRA A UNA SALA", True, (0, 0, 0))
         screen.blit(textM, (575, 300))
-    
+
         click = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -194,13 +197,13 @@ def create_room():
         varias_lineas(screen, font1, lineas, 135, 190)
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
-        rectipo = pygame.Rect(150, 400, 250, 40)        
+        rectipo = pygame.Rect(150, 400, 250, 40)
         textoIP2 = "127.0.0.0"
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
         screen.blit(textE, (625, 150))
         dibujar_jugadores(screen, font2, ["1", "2", "3", "4"], 635, 200)
-        inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", (0,0,0), 20) 
+        inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", (0,0,0), 20)
         inicio_game_button.draw()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -221,10 +224,10 @@ def obtener_ip_input(event, active, user_text):
     """Maneja la entrada de texto para el input box de IP"""
     if not active:
         return user_text, False
-    
+
     if event.type != pygame.KEYDOWN:
         return user_text, False
-        
+
     if event.key == pygame.K_RETURN and user_text:
         return user_text, True
     elif event.key == pygame.K_BACKSPACE:
@@ -245,7 +248,6 @@ def join_room():
     color = color_inactive
     active = False
     user_text = ""
-    ip_ingresada = ""
 
     while True:
         screen.blit(fondo, (0,0))
@@ -255,7 +257,7 @@ def join_room():
         varias_lineas(screen, font1, lineas, 135, 190)
         textE = font1.render("IP DE LA SALA", True, (0, 0, 0))
         screen.blit(textE, (620, 150))
-        
+
         # Dibuja el text box
         txt_surface = font2.render(user_text, True, (0, 0, 0))
         width = 300
@@ -263,24 +265,13 @@ def join_room():
         pygame.draw.rect(screen, color, input_box, 2)
         centrar_texto(screen, input_box, font2, txt_surface)
 
-        inicio_game_button = Button(screen, 620, 320, 200, 50, "ENTRAR", (0,0,0), 20) 
+        inicio_game_button = Button(screen, 620, 320, 200, 50, "ENTRAR", (0,0,0), 20)
         inicio_game_button.draw()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return
-                
-                # Maneja la entrada de texto
-                nuevo_texto, enter_presionado = obtener_ip_input(event, active, user_text)
-                user_text = nuevo_texto
-                if enter_presionado:
-                    ip_ingresada = user_text
-                    print(f"IP ingresada: {ip_ingresada}")
-                    preroom()  
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -289,15 +280,23 @@ def join_room():
                     else:
                         active = False
                     color = color_active if active else color_inactive
-                    
-                    menu_button.handle_event(event, lambda: new_menu())
-                    if ip_ingresada:  # Solo permite entrar si hay una IP ingresada
-                        inicio_game_button.handle_event(event, lambda: room())
+                    menu_button.handle_event(event, lambda: new_menu())    
+                    inicio_game_button.handle_event(event, lambda: preroom(user_text))
+                        
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return
+                # Maneja la entrada de texto
+                nuevo_texto, enter_presionado = obtener_ip_input(event, active, user_text)
+                user_text = nuevo_texto
+                if enter_presionado:
+                    preroom(user_text)
 
         pygame.display.update()
         clock.tick(60)
 
-def preroom():
+def preroom(user_text):
+    print(f"IP ingresada: {user_text}")
     room()
 
 def room():
@@ -315,7 +314,7 @@ def room():
         varias_lineas(screen, font1, lineas, 135, 190)
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
-        rectipo = pygame.Rect(150, 400, 250, 40)        
+        rectipo = pygame.Rect(150, 400, 250, 40)
         textoIP2 = "127.0.0.0"
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
@@ -334,28 +333,126 @@ def room():
 
         pygame.display.update()
         clock.tick(60)
+
+def album(): 
+    fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
+    menubg = pygame.image.load("src/graphics/background/background.png")
+    screen.blit(menubg, (0,0))
+    while True:
+        screen.blit(fondo, (0,0))
+        menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
+        menu_button.draw()
+        # Aquí puedes agregar más elementos de configuración de la sala
+        font1 = pygame.font.Font("src/font/Pixeled.ttf", 20)
+        font2 = pygame.font.Font("src/font/Pixeled.ttf", 15)
+        lineas = "MI ALBUM\nDE RECUERDOS".split('\n')
+        varias_lineas(screen, font1, lineas, 145, 160)
+        textE = font1.render("MI COLECCION", True, (0, 0, 0))
+        textE2 = font1.render("CREDITOS", True, (0, 0, 0))
+        screen.blit(textE, (615, 150))
+        boton_coleccion = Button(screen, 620, 225, 200, 50, "VER", (0,0,0), 20)
+        screen.blit(textE2, (645, 300))
+        boton_creditos = Button(screen, 620, 370, 200, 50, "VER", (0,0,0), 20)
+        boton_creditos.draw()
+        boton_coleccion.draw()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return  # Vuelve al menú anterior
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    menu_button.handle_event(event, lambda: new_menu())
+                    boton_coleccion.handle_event(event, lambda: coleccion())
+                    boton_creditos.handle_event(event, lambda: creditos())
+        pygame.display.update()
+        clock.tick(60)
+
+def coleccion():
+    
+    menubg = pygame.image.load("src/graphics/background/background_dialog_11.png")
+    fondo_coleccion = pygame.image.load("src/graphics/album/coleccionbg.png")
+    signo11 = pygame.image.load("src/graphics/album/signo11.png")
+    signo12 = pygame.image.load("src/graphics/album/signo12.png")
+    signo21 = pygame.image.load("src/graphics/album/signo21.png")
+    signo22 = pygame.image.load("src/graphics/album/signo22.png")
+    badge1 = pygame.image.load("src/graphics/album/badge1.png")
+    badge2 = pygame.image.load("src/graphics/album/badge2.png")
+    badge3 = pygame.image.load("src/graphics/album/badge3.png")
+    badge4 = pygame.image.load("src/graphics/album/badge4.png")
+    
+    screen.blit(menubg, (0,0))
+    
+    while True:
+        screen.blit(fondo_coleccion, (0,0))
+        menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
+        menu_button.draw()
         
+        if bombas_desactivadas == 0: 
+            screen.blit(signo11, (0,0))
+            screen.blit(signo12, (0,0))
+            screen.blit(signo21, (0,0))
+            screen.blit(signo22, (0,0))
+        elif bombas_desactivadas == 1:
+            screen.blit(badge1, (0,0))
+            screen.blit(signo12, (0,0))
+            screen.blit(signo21, (0,0))
+            screen.blit(signo22, (0,0))
+        elif bombas_desactivadas == 2:
+            screen.blit(badge1, (0,0))
+            screen.blit(badge2, (0,0))
+            screen.blit(signo21, (0,0))
+            screen.blit(signo22, (0,0))
+        elif bombas_desactivadas == 3:
+            screen.blit(badge1, (0,0))
+            screen.blit(badge2, (0,0))
+            screen.blit(badge3, (0,0))
+            screen.blit(signo22, (0,0))
+        elif bombas_desactivadas >= 4:
+            screen.blit(badge1, (0,0))
+            screen.blit(badge2, (0,0))
+            screen.blit(badge3, (0,0))
+            screen.blit(badge4, (0,0))
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return  # Vuelve al menú anterior
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    menu_button.handle_event(event, lambda: new_menu())
+        pygame.display.update()
+        clock.tick(60)
+
 def creditos():
     creditos_movibles = [
-    "BINARY BOMB SQUAD",
+    "", 
+    "ECO STRIKE",
     "",
     "INTEGRANTES DEL GRUPO:",
-    "1. MARÍA CAMILA OSORNO",
-    "2. JUAN FELIPE SANTOS",
-    "3. SAMUEL MATIZ",
-    "4. ALBERTO JOSÉ SANDOVAL",
+    "1. MARÍA CAMILA OSORNO SUÁREZ",
+    "2. ALBERTO JOSÉ SANDOVAL JIMENEZ",
+    "3. EFRAIN ANDRÉS RADA SANZ", 
+    "4. ALEJANDRA VALENCIA RUA",
+    "5. JUAN MIGUEL CARRASQUILLA ESCOBAR",
+    "6. PRESLY JAVIER ROMERO COLL"
+    
     "",
-    "DIRECTOR DEL PROYECTO:",
-    "1. MARÍA CAMILA OSORNO",
+    "PROFESORES:",
+    "1. MARGARITA ROSA GAMARRA ACOSTA",
+    "2. DANIEL ROMERO MARTÍNEZ",
+    "3. EDUARDO ZUREK VARELA",
+    
     "",
-    "DIRECTOR ASISTENTE:",
-    "1. JUAN FELIPE SANTOS",
-    "",
-    "LÍDER DE DISEÑO:",
-    "1. SAMUEL MATIZ",
-    "",
-    "LÍDER DE PROGRAMACIÓN:",
-    "1. ALBERTO JOSÉ SANDOVAL",
+    "CONTRIBUCIONES:",
+    "1. JUAN FELIFE SANTOS RODRIGUEZ",
+    "2. SAMUEL MATIZ GARCÍA",
+    ""
     ]
     start_time = time.time()
 
@@ -410,9 +507,9 @@ def game():
     running = True
     bombita = Bomba(duration, a1, a2, 10)
     bombita.asignar_modulos()
-    
+
     pos = [module1, module2, module3, module4, module5]
-    
+
     while running:
         x = 0
         for modulo in bombita.modulos:
@@ -422,8 +519,10 @@ def game():
                 x= x+1
         bombita.colocarFranja(timer)
         x = 0
-        screen.fill(BLACK)
+        fondo = pygame.image.load("src/graphics/background/background_dialog_11.png")
+        screen.blit(fondo, (0,0))
         
+
         for modulo in bombita.modulos:
             if modulo.nombre == "Cables Básicos":
                 if pos[x] == module1:
@@ -439,8 +538,8 @@ def game():
                 modulo.rect_abs = (posCB[0], posCB[1], 202, 202)
                 modulo.dibujarElementos(pos[x], screen, posCB)
                 mod_cb = modulo
-                
-            elif modulo.nombre == "Cables Complejos": 
+
+            elif modulo.nombre == "Cables Complejos":
                 if pos[x] == module1:
                     posCC = (180,71)
                 elif pos[x] == module2:
@@ -454,8 +553,8 @@ def game():
                 modulo.rect_abs = (posCC[0], posCC[1], 202, 202)
                 modulo.dibujarElementos(pos[x], screen, posCC)
                 mod_cc = modulo
-                
-            elif modulo.nombre == "Código": 
+
+            elif modulo.nombre == "Código":
                 if pos[x] == module1:
                     posC = (180,71)
                 elif pos[x] == module2:
@@ -483,7 +582,7 @@ def game():
                 modulo.dibujarElementos(pos[x], posM)
             elif modulo.nombre == "Exigente":
                 if pos[x] == module1:
-                    posexigente = (180,71)  
+                    posexigente = (180,71)
                 elif pos[x] == module2:
                     posexigente = (402,71)
                 elif pos[x] == module3:
@@ -496,7 +595,7 @@ def game():
                 modulo.dibujarElementos(pos[x],remaining_time,control, posexigente)
             if x < a2 -1:
                 x= x+1
-        
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -516,18 +615,18 @@ def game():
         screen.blit(module4, (180,293))
         screen.blit(module5, (402,293))
         screen.blit(timer, (625,293))
-        
-        
+
+
         mod_cb.C1.draw()
-        mod_cb.C2.draw()  
+        mod_cb.C2.draw()
         mod_cb.C3.draw()
         mod_cb.C4.draw()
-        
+
         mod_cc.C1.draw()
         mod_cc.C2.draw()
         mod_cc.C3.draw()
         mod_cc.C4.draw()
-        
+
         # Calcular el tiempo restante
         current_time = time.time()
         elapsed_time = current_time - start_time
@@ -605,10 +704,6 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
         # Variables para la pantalla de resultado
         #desactivada = True
         tiempo = "5:00"
-        #modulos = "5"
-        #intentos = "3"
-        #tiemporestante = "1:50"
-        #errores = "1"
 
         # Botones para la pantalla de resultado
         backbutton = pygame.Rect(595,370,95,40)
@@ -651,7 +746,7 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
                         if retrybutton.collidepoint(event.pos):
                             # Aquí se debe volver a jugar
                             opcJugar()
-                            
+
             screen.fill((50,50,50))
             screen.blit(resultbg, (0,0))
 
@@ -665,7 +760,7 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
                 pygame.draw.rect(screen, 0, retrybutton)
                 screen.blit(menutxt, (backbutton.x + 10, backbutton.y))
                 screen.blit(retrytxt, (retrybutton.x + 10, retrybutton.y))
-            
+
             screen.blit(bombconfigtxt, (625, 100))
             screen.blit(timeconfigtxt, (580, 140))
             screen.blit(moduleconfigtxt, (655, 140))
@@ -674,7 +769,7 @@ def terminarM(desactivada, modulos, tiemporestante, errores, intentos):
             screen.blit(remtimetxt, (700, 255))
             screen.blit(errorstitletxt, (680, 285))
             screen.blit(errorstxt, (710, 305))
-            
+
             clock.tick(60)
             pygame.display.update()
 
