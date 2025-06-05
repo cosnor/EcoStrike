@@ -1,5 +1,4 @@
-import time
-from random import randint
+from random import randint, sample
 from juego.modulos import *
 
 
@@ -57,46 +56,59 @@ class Bomba():
             print(LISTA_MODULOS_SELECCIONADOS)
 
             for modulo in LISTA_MODULOS_SELECCIONADOS: 
-                if modulo == "Cables simples": 
+
+                if modulo == "Cables simples":
+
                     FRANJAS = ["amarilla", "rosada", "verde", "blanca"]
-                    indice_elegido = randint(0, 3)
                     posicion = i
-                    nuevo_modulo = ModuloCablesBasicos(self, FRANJAS[indice_elegido], 1)
-                    nuevo_modulo.agregar_cables()
-                    self.franja = nuevo_modulo.franja
-                    print(nuevo_modulo.franja)
-                    self.modulos.append(nuevo_modulo)
-                    
+                    nuevoModulo = ModuloCablesBasicos(self, FRANJAS[randint(0, 3)], 1)
+                    nuevoModulo.agregar_cables()
+                    self.franja = nuevoModulo.franja
+                    print(nuevoModulo.franja)
+                    self.modulos.append(nuevoModulo)
 
                 elif modulo == "Cables complejos":
-                        nuevo_modulo = ModuloCablesComplejos(self,  4)
-                        nuevo_modulo.agregar_cables()
-                        nuevo_modulo.conectar_cables()
-                        nuevo_modulo.asignacion_LED()
-                        self.modulos.append(nuevo_modulo)
+
+                        nuevoModulo = ModuloCablesComplejos(self,  4)
+                        nuevoModulo.agregar_cables()
+                        nuevoModulo.conectar_cables()
+                        nuevoModulo.asignacion_LED()
+                        self.modulos.append(nuevoModulo)
                         posicion = i
 
                 elif modulo == "Memoria":
-                        nuevo_modulo = ModuloPalabras(self, 4)
-                        nuevo_modulo.agregar_lista()
-                        self.modulos.append(nuevo_modulo)
+                        
+                        nuevoModulo = ModuloPalabras(self, 4)
+                        nuevoModulo.agregar_lista()
+                        self.modulos.append(nuevoModulo)
                         posicion = i
 
                 elif modulo == "Código":
-                        LISTA_CODIGOS = ["ARBOL", "PUNTO", "GRAFO", "PILAS", "COLAS", 
-                                        "LISTA", "NODOS", "CELDA", "DOBLE", "DATOS",
-                                        "ORDEN", "TABLA", "CAMPO", "INDEX", "FILAS", 
-                                        "GRUPO", "ERROR", "TEXTO", "BYTES", "VISTA",
-                                        "AYUDA", "CLASE", "FILES", "EXCEL", "CICLO",
-                                        "TEMAS", "NOTAS", "CREAR", "POINT", "ANTES",
-                                        "TUPLA", "ARRAY", "BOMBA", "LINEA", "RUTAS"]
-                        indice_elegido = randint(0, 34)
-                        nuevo_modulo = ModuloCodigo(self, LISTA_CODIGOS[indice_elegido], 3)
-                        nuevo_modulo.set_casillas_inicial()
-                        self.modulos.append(nuevo_modulo)
+                        
+                        LISTA_CODIGOS = ["SOLAR", "VERDE", "FLORA", "FAUNA", "TERRA", 
+                                        "MARES", "LAGOS", "HIELO", "CALOR", "OZONO",
+                                        "CLIMA", "VEGAN", "CRUDO", "CICLO", "BIOMA", 
+                                        "SALUD", "SAVIA", "GRANO", "ACIDO", "LIMBO",
+                                        "MANTO", "SELVA", "RIOS", "CORAL", "POLAR",
+                                        "SERES", "ALGAS", "TALAR", "RAMAS", "HUMUS",
+                                        "FUEGO", "PLOMO", "TOXIN", "RIEGO", "PLAGA",
+                                        "SUELO", "TIFON", "CENIT", "VAPOR", "BOMBA",
+                                        "ARIDO", "HOJAS", "TURBA", "NUBES", "POLVO",
+                                        "FOSIL", "FANGO", "ETICA", "NIEVE", "NICHO",
+                                        "DELTA", "COSTA", "GASES", "SECAR", "AMBAR",
+                                        "LIMON", "TUBOS", "CAMPO", "CACAO", "ARCES",
+                                        "MIEDO", "ARENA", "BRUMA", "AGUAS", "CRECE",
+                                        "OLMOS", "ACTOS", "LUCES"]
+                        
+                        N_LISTA_CODIGOS = sample(LISTA_CODIGOS, 34)  # Lista de códigos recortada
+
+                        nuevoModulo = ModuloCodigo(self, N_LISTA_CODIGOS[randint(0, 33)], 3)
+                        nuevoModulo.set_casillas_inicial()
+                        self.modulos.append(nuevoModulo)
                         posicion = i
 
                 elif modulo == "Exigente":
-                        nuevo_modulo = ModuloExigente(self, 2)
-                        self.modulos.append(nuevo_modulo)
+                        
+                        nuevoModulo = ModuloExigente(self, 2)
+                        self.modulos.append(nuevoModulo)
                         posicion = i
