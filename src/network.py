@@ -14,6 +14,7 @@ lock = threading.Lock()
 
 on_bomb_role = None
 on_manual_role = None
+assigned_role = None
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -108,13 +109,14 @@ def trigger_role_assignment():
 
 
 def start_server():
-    global server_socket
+    global server_socket, clients
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((HOST, PORT))
     server_socket.listen()
     ip= get_local_ip()
     print(f"[🎮] Servidor iniciado en {HOST}:{PORT}")
     print(f"[🌐] IP del host (local): {ip}")
+    clients = []
 
     def accept_clients():
         try:
@@ -130,14 +132,15 @@ def start_server():
 
 
 def connect_to_server_as_host():
-    global client_socket
+    global client_socket, assigned_role
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect(('127.0.0.1', PORT))
         print("[✅] Host conectado a sí mismo como cliente")
+        assigned_role = None  # Inicializa el rol como None
 
         def listen_for_role():
-            global connected_count, player_number
+            global connected_count, player_number, assigned_role
             while True:
                 try:
                     data = client_socket.recv(1024).decode()
@@ -147,10 +150,7 @@ def connect_to_server_as_host():
                         connected_count = int(data.split(":")[1])
                     elif data in ["bomb", "manual"]:
                         print(f"[🎭] Te tocó el rol: {data}")
-                        if data == "bomb" and on_bomb_role:
-                            on_bomb_role()
-                        elif data == "manual" and on_manual_role:
-                            on_manual_role()
+                        assigned_role = data  # Guarda el rol, no lo ejecutes aquí
                 except:
                     break
 
@@ -164,15 +164,16 @@ def connect_to_server_as_host():
 client_socket = None
 
 def connect_to_server(server_ip):
-    global client_socket
+    global client_socket, assigned_role
 
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((server_ip, PORT))
         print("[✅] Conectado al servidor")
+        assigned_role = None  # Inicializa el rol como None
 
         def listen_for_role():
-            global connected_count, player_number
+            global connected_count, player_number, assigned_role
             while True:
                 try:
                     data = client_socket.recv(1024).decode()
@@ -182,10 +183,8 @@ def connect_to_server(server_ip):
                         connected_count = int(data.split(":")[1])
                     elif data in ["bomb", "manual"]:
                         print(f"[🎭] Te tocó el rol: {data}")
-                        if data == "bomb" and on_bomb_role:
-                            on_bomb_role()
-                        elif data == "manual" and on_manual_role:
-                            on_manual_role()
+                        assigned_role = data  # Guarda el rol, no lo ejecutes aquí
+
                 except:
                     break
 

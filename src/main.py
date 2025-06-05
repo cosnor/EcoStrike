@@ -228,7 +228,7 @@ def create_room():
                     return  # Vuelve al menú anterior
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    menu_button.handle_event(event, lambda: new_menu())
+                    menu_button.handle_event(event, lambda: opcJugar())
                     if puede_iniciar:
                         print("[🎲] Iniciando partida...")
                         if not partida_iniciada:
@@ -237,7 +237,14 @@ def create_room():
             nonlocal partida_iniciada
             partida_iniciada = True
             network.trigger_role_assignment()
-
+        if network.assigned_role == "bomb":
+            print("..Rol asignado: Bomba")
+            game()
+            return
+        elif network.assigned_role == "manual":
+            print("..Rol asignado: Manual")
+            show_manual()
+            return
         pygame.display.update()
         clock.tick(60)
 
@@ -377,6 +384,15 @@ def room(ip):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     menu_button.handle_event(event, lambda: new_menu())
+
+        if network.assigned_role == "bomb":
+            print("..Rol asignado: Bomba")
+            game()  # Llama a la función del juego
+            return
+        elif network.assigned_role == "manual":
+            print("..Rol asignado: Manual")
+            show_manual()  # Llama a la función del manual
+            return
 
         pygame.display.update()
         clock.tick(60)
@@ -738,9 +754,6 @@ def show_manual():
         os.system(f"open '{manual_path}'")
     else:  # Linux
         os.system(f"xdg-open '{manual_path}'")
-
-network.on_bomb_role = game
-network.on_manual_role = show_manual
 
 if __name__ == "__main__":
     new_menu()
