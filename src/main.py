@@ -1,5 +1,7 @@
 from __future__ import annotations
 import pygame
+import network
+import ipaddress
 from pygame.locals import *
 from juego.button import *
 from juego.bomba import Bomba
@@ -183,6 +185,10 @@ def opcJugar():
         clock.tick(60)
 
 def create_room():
+    partida_iniciada = False
+    
+    ip = network.start_server()
+    network.connect_to_server_as_host()
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
     menubg = pygame.image.load("src/graphics/background/background.png")
     screen.blit(menubg, (0,0))
@@ -198,13 +204,27 @@ def create_room():
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
         rectipo = pygame.Rect(150, 400, 250, 40)
-        textoIP2 = "127.0.0.0"
+        textoIP2 = ip
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
         screen.blit(textE, (625, 150))
-        dibujar_jugadores(screen, font2, ["1", "2", "3", "4"], 635, 200)
         inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", (0,0,0), 20)
         inicio_game_button.draw()
+        
+        jugadores_conectados = []
+        for i in range(network.connected_count):
+            label = f"Jugador {i+1}"
+            if i+1 == network.player_number:
+                label += " (You)"
+            jugadores_conectados.append(label)
+        
+        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
+
+        puede_iniciar = network.connected_count >= 2
+        color_boton = (0, 0, 0) if puede_iniciar else (100, 100, 100)  # Gris si no puede iniciar
+        inicio_game_button = Button(screen, 620, 400, 200, 50, "INICIAR", color_boton, 20)
+        inicio_game_button.draw()
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -214,9 +234,25 @@ def create_room():
                     return  # Vuelve al menú anterior
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    menu_button.handle_event(event, lambda: new_menu())
-                    inicio_game_button.handle_event(event, lambda: game())
+                    menu_button.handle_event(event, lambda: opcJugar())
+                    if puede_iniciar: 
+                        print("Iniciando partida...")
+                        if not partida_iniciada:
+                            inicio_game_button.handle_event(event, lambda: iniciar_partida())
 
+        def iniciar_partida():
+            nonlocal partida_iniciada
+            partida_iniciada = True
+            network.trigger_role_assignment()
+        if network.assigned_role == "bomb":
+            print("..Rol asignado: Bomba")
+            game()
+            return
+        elif network.assigned_role == "manual":
+            print("..Rol asignado: Manual")
+            show_manual()
+            return
+        
         pygame.display.update()
         clock.tick(60)
 
@@ -248,6 +284,7 @@ def join_room():
     color = color_inactive
     active = False
     user_text = ""
+    ip_ingresada = ""
 
     while True:
         screen.blit(fondo, (0,0))
@@ -272,7 +309,6 @@ def join_room():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     if input_box.collidepoint(event.pos):
@@ -295,11 +331,26 @@ def join_room():
         pygame.display.update()
         clock.tick(60)
 
-def preroom(user_text):
-    print(f"IP ingresada: {user_text}")
-    room()
+def es_ip_valida(ip: str): 
+    try:
+        ipaddress.IPv4Address(ip)
+        return True
+    except ipaddress.AddressValueError:
+        return False
+    
+def preroom(ip_ingresada):
+    """Función que se llama al presionar el botón de entrar a la sala"""
+    if not ip_ingresada or not es_ip_valida(ip_ingresada):
+        # Si la IP no es válida, muestra un diálogo de error
+        print("IP inválida. Por favor, ingresa una IP válida.")
+        return
+    room(ip_ingresada)
 
-def room():
+def room(ip):
+    conectado = network.connect_to_server(ip)
+    if not conectado:
+        print("No se pudo conectar al servidor. Verifica la IP e intenta nuevamente.")
+        return
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
     menubg = pygame.image.load("src/graphics/background/background.png")
     screen.blit(menubg, (0,0))
@@ -315,11 +366,21 @@ def room():
         textoIP = "IP DE LA SALA"
         screen.blit(font1.render(textoIP, True, (255, 255, 255)), (175, 320))
         rectipo = pygame.Rect(150, 400, 250, 40)
-        textoIP2 = "127.0.0.0"
+        textoIP2 = ip
         centrar_texto(screen, rectipo, font2, font2.render(textoIP2, True, (255, 255, 255)))
         textE = font1.render("JUGADORES", True, (0, 0, 0))
         screen.blit(textE, (625, 150))
-        dibujar_jugadores(screen, font2, ["1", "2", "3", "4"], 635, 200)
+        jugadores_conectados = []
+        player_num = getattr(network, "player_number", None)
+        count = getattr(network, "connected_count", 1)
+        
+        for i in range(count):
+            label = f"Jugador {i+1}"
+            if player_num is not None and i+1 == player_num:
+                label += " (You)"
+            jugadores_conectados.append(label)
+        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -331,6 +392,15 @@ def room():
                 if event.button == 1:
                     menu_button.handle_event(event, lambda: new_menu())
 
+        if network.assigned_role == "bomb":
+            print("..Rol asignado: Bomba")
+            game()  # Llama a la función del juego
+            return
+        elif network.assigned_role == "manual":
+            print("..Rol asignado: Manual")
+            show_manual()  # Llama a la función del manual
+            return
+        
         pygame.display.update()
         clock.tick(60)
 
@@ -428,6 +498,21 @@ def coleccion():
                     menu_button.handle_event(event, lambda: new_menu())
         pygame.display.update()
         clock.tick(60)
+
+import os
+import platform
+def show_manual():
+    # Ruta absoluta basada en la ubicación del archivo actual (main.py)
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    manual_path = os.path.join(base_path, "files", "MANUAL DE DESACTIVACIÓN.pdf")
+
+    if platform.system() == "Windows":
+        os.startfile(manual_path)
+    elif platform.system() == "Darwin":  # macOS
+        os.system(f"open '{manual_path}'")
+    else:  # Linux
+        os.system(f"xdg-open '{manual_path}'")
+
 
 def creditos():
     creditos_movibles = [
