@@ -523,10 +523,6 @@ class ModuloPalabras(Modulo):  #Caso memoria
             led_rojo = pygame.image.load("src/graphics/LED_MODULOS/LED_rojo_modulo.png")
             pantalla.blit(led_rojo, (0, 0))
             
-        # boton1 = ButtonM(pantalla,30,123,32,47,"1",(0,0,0,0))
-        # boton2 = ButtonM(pantalla,65,123,35,47,"2",(0,0,0,0))
-        # boton3 = ButtonM(pantalla,103,123,35,47,"3",(0,0,0,0))
-        # boton4 = ButtonM(pantalla,140,123,35,47,"4",(0,0,0,0))
         barra = ButtonM(pantalla, 65, 173, 73, 15, "", (0,0,0,0))
         boton1 = ButtonN(pantalla,30,123,32,47,Nodo(self.opciones[0], 1))
         boton2 = ButtonN(pantalla,65,123,35,47, Nodo(self.opciones[1], 2))
@@ -678,7 +674,7 @@ class ModuloPalabras(Modulo):  #Caso memoria
     
     
 class ModuloCodigo(Modulo):
-    def __init__(self, Bomba, codigo:str, pos:int) -> None:
+    def __init__(self, Bomba, codigo:str, pos:int, lista) -> None:
         super().__init__(Bomba, pos)
         self.nombre = "Código"
         self.i1 = 0
@@ -700,6 +696,7 @@ class ModuloCodigo(Modulo):
         self.estado_equivocacion = False
         self.font = pygame.font.Font("src/font/Pixeled.ttf", 12)
         self.rect_abs = None
+        self.lista = lista  
 
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_codigo.png")

@@ -54,7 +54,7 @@ module4.fill(VANILLA)
 module5.fill(VANILLA)
 timer.fill(VANILLA)
 
-bombas_desactivadas = 6
+bombas_desactivadas = 0
 
 click = False
 
@@ -585,15 +585,20 @@ def show_manual():
     menubg = pygame.image.load("src/graphics/background/background_dialog_11.png")
     fondo_manual = pygame.image.load("src/graphics/background/manualbg.png")
     font_manual = pygame.font.Font("src/font/Montserrat-Regular.ttf", 9)
+    font_manual2 = pygame.font.Font("src/font/Montserrat-Regular.ttf", 12)
     header_font = pygame.font.Font("src/font/Pixeled.ttf", 18)
     subheader_font = pygame.font.Font("src/font/Montserrat-Regular.ttf", 15)
     screen.blit(menubg, (0,0))
     menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
     menu_button.draw()
 
-    
+    for modulo in bombita.modulos:
+        if modulo.nombre == "Código":
+            codigos = modulo.lista
+            
     texto1 = ['Para C1: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El cambio climático solo afecta a las regiones polares.\nSolo los gobiernos pueden hacer algo frente al cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Las emisiones de dióxido de carbono son la principal causa del cambio climático.\nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos.\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C4: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La energía nuclear no emite gases de efecto invernadero durante su operación:\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos:\nLos aerosoles naturales tienen un impacto mayor que el calentamiento global.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C3: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima. \nLas emisiones de dióxido de carbono son la principal causa del cambio climático. \nEl calentamiento global solo afecta a las regiones polares. \nSolo los gobiernos pueden hacer algo frente al cambio climático. \nLa deforestación contribuye al cambio climático. \nReciclar papel ayuda a conservar los árboles. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nEl plástico es biodegradable en menos de 10 años. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nEl deshielo de los polos puede elevar el n', 'Para C2: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLas energías renovables no generan ningún tipo de contaminación.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El calentamiento global es un mito creado por científicos:\nEl deshielo de los polos puede elevar el nivel del mar.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La deforestación contribuye al cambio climático:\nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)']
-    texto2 =texto1
+    texto2 = texto1
+    texto3 = codigos
     
     # texto1 = resp_bas
     # texto2 = resp_comp
@@ -602,8 +607,9 @@ def show_manual():
     texto2 = lista_a_texto(texto2)
     
     # Crear dos rectángulos para el texto
-    rect_texto1 = pygame.Rect(75, 70, 400, 425)  # Rectángulo izquierdo
+    rect_texto1 = pygame.Rect(75, 70, 400, 250)  # Rectángulo izquierdo
     rect_texto2 = pygame.Rect(555, 75, 360, 365)  # Rectángulo derecho
+    rect_texto3 = pygame.Rect(165, 355, 400, 180)  # Rectángulo izquierdo abajo
     
     # Dividir el texto en líneas
     lineas_texto1 = texto1.split('\n')
@@ -680,6 +686,10 @@ def show_manual():
         # Dibuja los textos con scroll
         altura_total1 = varias_lineas_con_scroll(screen, font_manual, lineas_texto1, rect_texto1, scroll_y, header_text="MANUAL DEL ACTUADOR", header_font=header_font, subheader_text="Cables Simples"  ,subheader_font=subheader_font)
         altura_total2 = varias_lineas_con_scroll(screen, font_manual, lineas_texto2, rect_texto2, scroll_y, None, None, subheader_text="Cables Complejos", subheader_font=subheader_font)
+        screen.blit(subheader_font.render("Códigos", True, (0, 0, 0)), (245, 325))
+        varias_lineas_parrafo_esp(screen, font_manual2, texto3, rect_texto3.y, rect_texto3.x)  
+
+        
         # Dibuja el botón de ver diagrama
         ver_diagrama_button.draw()
 
@@ -736,8 +746,7 @@ def creditos():
     "3. EFRAIN ANDRÉS RADA SANZ", 
     "4. ALEJANDRA VALENCIA RUA",
     "5. JUAN MIGUEL CARRASQUILLA ESCOBAR",
-    "6. PRESLY JAVIER ROMERO COLL"
-    
+    "6. PRESLY JAVIER ROMERO COLL",
     "",
     "PROFESORES:",
     "1. MARGARITA ROSA GAMARRA ACOSTA",

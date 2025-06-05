@@ -102,7 +102,7 @@ class Bomba():
                         
                         N_LISTA_CODIGOS = sample(LISTA_CODIGOS, 34)  # Lista de códigos recortada
 
-                        nuevoModulo = ModuloCodigo(self, N_LISTA_CODIGOS[randint(0, 33)], 3)
+                        nuevoModulo = ModuloCodigo(self, N_LISTA_CODIGOS[randint(0, 33)], 3, N_LISTA_CODIGOS)
                         nuevoModulo.set_casillas_inicial()
                         self.modulos.append(nuevoModulo)
                         posicion = i

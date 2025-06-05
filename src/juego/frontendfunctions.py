@@ -28,6 +28,27 @@ def varias_lineas_parrafo(screen, font1, lineas, posy_inicial, posx):
         screen.blit(text_surface, (posx, y))
         y += text_surface.get_height()   # 1 pixel de espacio entre líneas
 
+def varias_lineas_parrafo_esp(screen, font1, lineas, posy_inicial, posx):
+    y = posy_inicial
+    espaciado = 2  # Espacio entre líneas
+    
+    # Procesar todas las palabras de todas las líneas juntas
+    todas_palabras = []
+    for linea in lineas:
+        todas_palabras.extend(linea.split())
+    
+    # Agrupar palabras de 5 en 5
+    lineas_nuevas = []
+    for i in range(0, len(todas_palabras), 5):
+        grupo = todas_palabras[i:i+5]
+        lineas_nuevas.append(' '.join(grupo))
+    
+    # Renderizar cada nueva línea
+    for nueva_linea in lineas_nuevas:
+        text_surface = font1.render(nueva_linea, True, (0, 0, 0))
+        screen.blit(text_surface, (posx, y))
+        y += text_surface.get_height() + espaciado  # Agregar espaciado entre líneas
+
 def varias_lineas_con_scroll(screen, font, lineas, rect, scroll_y=0, header_text=None, header_font=None, subheader_text=None, subheader_font=None):
     """
     Dibuja múltiples líneas de texto con scroll, con header y subheader opcionales
@@ -113,3 +134,13 @@ def formatear_reglas_para_tabla(reglas):
 
             filas.append([naranja, morado, led, conectado_a, cod + ": " + acc])
     return filas
+
+def lista_a_string_con_saltos(lista):
+    resultado = ""
+    for i, elemento in enumerate(lista):
+        resultado += str(elemento)
+        if (i + 1) % 7 == 0:
+            resultado += "\n"
+        else:
+            resultado += " "
+    return resultado.strip()
