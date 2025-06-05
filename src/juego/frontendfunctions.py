@@ -87,3 +87,29 @@ def varias_lineas_con_scroll(screen, font, lineas, rect, scroll_y=0, header_text
 
     screen.blit(temp_surface, rect)
     return altura_total  # Retornamos la altura total para calcular el máximo scroll
+
+def formatear_reglas_para_tabla(reglas):
+    filas = []
+    for conectado_a, reglas_lista in reglas.items():  # 'A' o 'B'
+        for regla in reglas_lista:
+            naranja = "Sí" if (
+                (regla.get('tipo') == 'color_led' and regla.get('color') == 'Naranja') or 
+                (regla.get('tipo') == 'color' and regla.get('color') == 'Naranja')
+            ) else "No"
+
+            morado = "Sí" if (
+                (regla.get('tipo') == 'color_led' and regla.get('color') == 'Morado') or 
+                (regla.get('tipo') == 'color' and regla.get('color') == 'Morado')
+            ) else "No"
+
+            led = "Sí" if regla.get('tipo') in ['led', 'color_led'] else "No"
+
+            cod = regla.get('accion', '?')
+            value_enunciado = regla.get('value_enunciado', False)
+
+            acc = "Ir a enunciados" if value_enunciado else (
+                "Cortar el cable" if conectado_a == 'A' else "No cortar el cable"
+            )
+
+            filas.append([naranja, morado, led, conectado_a, cod + ": " + acc])
+    return filas

@@ -1,14 +1,13 @@
 from __future__ import annotations
 from abc import ABC
 from typing import List
-from random import * 
-from random import shuffle
+from random import shuffle, randint, choice, seed
 import time
 import threading
 import pygame
+
 from juego.button import *
 from juego.bomba import *
-
 
 class Modulo:
     def __init__(self, Bomba, pos) -> None:
@@ -31,7 +30,143 @@ class ModuloCablesBasicos(Modulo):
         self.C4 = None
         self.rect_abs = None
         self.modulo = None
+        self.reglas_config = None
+        
+        
+    def regla_se_cumple(self, regla, cable_basico):
+        """Devuelve True si la combinación de cables cumple la regla."""
+        if regla.get("tipo") == "directa":
+            return (self.cables[regla["cable_idx"]].color == regla["cable_color"] and
+                    cable_basico.color == regla["cb_color"])
+        elif regla.get("tipo") == "indirecta":
+            return (self.cables[regla["cable_idx"]].color == regla["cable_color"] and
+                    cable_basico.color == self.cables[regla["cb_color_idx"]].color)
+        elif regla.get("tipo") == "solo_cb":
+            return cable_basico.color == self.cables[regla["cb_color_idx"]].color
+        return False
+    
+    def generar_reglas_congruentes(self):
+        reglas_por_franja = {}
+        TIPOS = ("directa", "indirecta", "solo_cb")
+        #Por cada franja
+        for franja in ["amarilla", "rosada", "verde", "blanca"]:
+            # 2.1 elige la regla que sí será válida
+            tipo_valido = choice(TIPOS)
+            reglas = []
+            afirmacion_es_verdadera = choice([True, False])
 
+            cable_random = randint(0, 3)
+
+            regla = {
+                "tipo": "condicional",
+                "afirmacion_es_verdadera": afirmacion_es_verdadera,
+                "cable_si_afirmacion_verdadera": cable_random
+            }
+
+            reglas.append(regla)
+
+            #genera la regla verdadera
+            if tipo_valido == "directa":
+                cable_idx = choice(range(len(self.cables)))
+                regla_ok = {
+                    "tipo": "directa",
+                    "valida": True,
+                    "cable_idx": cable_idx,
+                    "cable_color": self.cables[cable_idx].color,
+                    "cb_color": self.cables[cable_idx].color  # será cierta al pinchar ese mismo color
+                }
+
+            elif tipo_valido == "indirecta":
+                cable_idx, cb_idx = choice(range(len(self.cables))), choice(range(len(self.cables)))
+                while cb_idx == cable_idx:
+                    cb_idx = choice(range(len(self.cables)))
+                regla_ok = {
+                    "tipo": "indirecta",
+                    "valida": True,
+                    "cable_idx": cable_idx,
+                    "cable_color": self.cables[cable_idx].color,
+                    "cb_color_idx": cb_idx      # basta con pinchar el cable del color cb_idx
+                }
+
+            else:  # solo_cb
+                cb_idx = choice(range(len(self.cables)))
+                regla_ok = {
+                    "tipo": "solo_cb",
+                    "valida": True,
+                    "cb_color_idx": cb_idx      # verdadera sólo si las otras dos fallan
+                }
+
+            reglas.append(regla_ok)
+
+            #genera las dos reglas falsas
+            tipos_falsos = [t for t in TIPOS if t != tipo_valido]
+
+            for t in tipos_falsos:
+                regla_falsa = None
+
+                #DIRECTA FALSA
+                if t == "directa":
+                    # mismatcheamos el color del cable para que jamás coincida
+                    cable_idx = choice(range(len(self.cables)))
+                    color_real = self.cables[cable_idx].color
+                    color_falso = choice([c.color for c in self.cables if c.color != color_real])
+                    regla_falsa = {
+                        "tipo": "directa",
+                        "valida": False,
+                        "cable_idx": cable_idx,
+                        "cable_color": color_falso,
+                        "cb_color": color_real        # da igual, ya falló la 1ª condición
+                    }
+
+                #INDIRECTA FALSA
+                elif t == "indirecta":
+                    cable_idx = choice(range(len(self.cables)))
+                    color_real = self.cables[cable_idx].color
+                    color_falso = choice([c.color for c in self.cables if c.color != color_real])
+                    cb_idx = choice(range(len(self.cables)))
+                    regla_falsa = {
+                        "tipo": "indirecta",
+                        "valida": False,
+                        "cable_idx": cable_idx,
+                        "cable_color": color_falso,   # 1ª condición nunca se cumple
+                        "cb_color_idx": cb_idx
+                    }
+
+                #SOLO_CB FALSA
+                else:  # solo_cb
+                    # escogemos un índice cuya combinación ya esté cubierta por la regla válida
+                    # o mismatcheamos vía 'valida': False para que el validador la ignore
+                    cb_idx = choice(range(len(self.cables)))
+                    regla_falsa = {
+                        "tipo": "solo_cb",
+                        "valida": False,
+                        "cb_color_idx": cb_idx
+                    }
+
+                # Verifica que realmente no se cumple (por seguridad)
+                se_cumple = any(self.regla_se_cumple(regla_falsa, cb) for cb in self.cables)
+                if se_cumple:
+                    # Fuerza la invalidez cambiando cable_color si fuese necesario
+                    if t in ("directa", "indirecta"):
+                        otros_colores = [c.color for c in self.cables
+                                        if c.color not in (regla_falsa.get("cable_color"),
+                                                            regla_ok.get("cable_color", ""))]
+                        if otros_colores:
+                            regla_falsa["cable_color"] = otros_colores[0]
+                    # nota: si aún se cumpliese, el validador la saltará porque valida=False
+                reglas.append(regla_falsa)
+
+            #guarda por franja
+            reglas_por_franja[franja] = reglas
+            orden_tipos = ["condicional","directa", "indirecta", "solo_cb"]
+            reglas_ordenadas = []
+            for tipo in orden_tipos:
+                reglas_tipo = [r for r in reglas if r.get("tipo") == tipo]
+                reglas_ordenadas.extend(reglas_tipo) 
+        return reglas_por_franja
+
+
+  
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_cables_simples.png")
         pantalla.blit(fondo, (0, 0))
@@ -51,50 +186,31 @@ class ModuloCablesBasicos(Modulo):
             pantalla.blit(led_rojo, (0, 0))
     
     def agregar_cables(self):
-        #Asignación aleatoria del orden de los cables
+        seed(time.time()) 
         LISTA_COLORES = ["Rojo", "Azul", "Negro", "Blanco"]
         shuffle(LISTA_COLORES)
-        for i in range(0,4):
-            if i == 0: 
-                self.rect.append(pygame.Rect(0,1,10,10))                
-                if LISTA_COLORES[i] == "Rojo": 
-                    self.cables.append(CableRojo(color=LISTA_COLORES[i], posx= 0, posy = 1))
-                elif LISTA_COLORES[i] == "Azul":
-                    self.cables.append(CableAzul(color=LISTA_COLORES[i], posx= 0, posy = 1))
-                elif LISTA_COLORES[i] == "Negro":
-                    self.cables.append(CableNegro(color=LISTA_COLORES[i], posx= 0, posy = 1))
-                elif LISTA_COLORES[i] == "Blanco":
-                    self.cables.append(CableBlanco(color=LISTA_COLORES[i], posx= 0, posy = 1))
-            elif i == 1: 
-                self.rect.append(pygame.Rect(0,30,10,10))                
-                if LISTA_COLORES[i] == "Rojo": 
-                    self.cables.append(CableRojo(color=LISTA_COLORES[i], posx= 0, posy = 30))
-                elif LISTA_COLORES[i] == "Azul":
-                    self.cables.append(CableAzul(color=LISTA_COLORES[i], posx= 0, posy = 30))
-                elif LISTA_COLORES[i] == "Negro":
-                    self.cables.append(CableNegro(color=LISTA_COLORES[i], posx= 0, posy = 30))
-                elif LISTA_COLORES[i] == "Blanco":
-                    self.cables.append(CableBlanco(color=LISTA_COLORES[i], posx= 0, posy = 30))
-            elif i == 2: 
-                self.rect.append(pygame.Rect(0,60,10,10))
-                if LISTA_COLORES[i] == "Rojo": 
-                    self.cables.append(CableRojo(color=LISTA_COLORES[i], posx= 0, posy = 60))
-                elif LISTA_COLORES[i] == "Azul":
-                    self.cables.append(CableAzul(color=LISTA_COLORES[i], posx= 0, posy = 60))
-                elif LISTA_COLORES[i] == "Negro":
-                    self.cables.append(CableNegro(color=LISTA_COLORES[i], posx= 0, posy = 60))
-                elif LISTA_COLORES[i] == "Blanco":
-                    self.cables.append(CableBlanco(color=LISTA_COLORES[i], posx= 0, posy = 60))
-            elif i == 3: 
-                self.rect.append(pygame.Rect(0,90,10,10))
-                if LISTA_COLORES[i] == "Rojo": 
-                    self.cables.append(CableRojo(color=LISTA_COLORES[i], posx= 0, posy = 90))
-                elif LISTA_COLORES[i] == "Azul":
-                    self.cables.append(CableAzul(color=LISTA_COLORES[i], posx= 0, posy = 90))
-                elif LISTA_COLORES[i] == "Negro":
-                    self.cables.append(CableNegro(color=LISTA_COLORES[i], posx= 0, posy = 90))
-                elif LISTA_COLORES[i] == "Blanco":
-                    self.cables.append(CableBlanco(color=LISTA_COLORES[i], posx= 0, posy = 90))
+
+        COLOR_TO_CLASS = {
+            "Rojo": CableRojo,
+            "Azul": CableAzul,
+            "Negro": CableNegro,
+            "Blanco": CableBlanco
+        }
+
+        self.cables = []
+        self.rect = []
+
+        for i, color in enumerate(LISTA_COLORES):
+            
+            pos_y = i * 30  # Calcula la posición vertical automáticamente
+            rect = pygame.Rect(0, pos_y, 10, 10)
+            self.rect.append(rect)
+
+            cable_class = COLOR_TO_CLASS[color]
+            cable = cable_class(color=color, posx=0, posy=pos_y)
+            self.cables.append(cable)
+        seed(time.time() + i*100)
+        self.reglas_config = self.generar_reglas_congruentes()
         
     def cortar_cable(self, CableBasico: object): 
         #Validación que modulo esté sin desactivar
@@ -102,74 +218,49 @@ class ModuloCablesBasicos(Modulo):
             CableBasico.set_estado_cortado()
             self.validacion(CableBasico)
         
-    ##! Revisar cómo colocar IA en esta parte
-    def validacion(self, CableBasico):
-        #Comprobación de que el cable cortado sea el correcto luego de  presionar enviar o cortar un cable
-        #CableBasico es el cable cortado
-        # self.cables es la lista de cables del módulo
-        if self.franja == "amarilla": 
-            if self.cables[0].color =="Rojo" and CableBasico.color == "Rojo":  
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[1].color == "Azul" and CableBasico.color == self.cables[2].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[3].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else:             
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()          
 
-        if self.franja == "rosada":
-            if self.cables[3].color == "Blanco" and CableBasico.color == "Blanco":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[2].color == "Azul" and CableBasico.color == self.cables[1].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[2].color:
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()       
+    def validacion(self, cable_basico):
+        # Obtén todas las reglas de la franja
+        reglas = self.reglas_config.get(self.franja, [])
+        regla_condicional = next((r for r in reglas if r["tipo"] == "condicional"), None)
+        # Separar por tipo y descartar las inválidas de antemano
+        directa    = next((r for r in reglas if r["tipo"] == "directa"   and r.get("valida")), None)
+        indirecta  = next((r for r in reglas if r["tipo"] == "indirecta" and r.get("valida")), None)
+        solo_cb    = next((r for r in reglas if r["tipo"] == "solo_cb"   and r.get("valida")), None)
+        if regla_condicional:
+            afirmacion = regla_condicional["afirmacion_es_verdadera"]
+            if afirmacion:
+                # Cortar cable aleatorio predefinido
+                cable_correcto = self.cables[regla_condicional["cable_si_afirmacion_verdadera"]]
+                print(cable_correcto, regla_condicional["cable_si_afirmacion_verdadera"])
+                if cable_basico.color == cable_correcto.color:
+                    self.estado = True
+                    self.Bomba.modulos_restantes -= 1
+                else:
+                    self.estado_equivocacion = True
+                    self.Bomba.notificar_equivocacion()
+                return
+        # Evalúa respetando la jerarquía
+        if directa and self.regla_se_cumple(directa, cable_basico):
+            print("Regla DIRECTA cumplida")
+            print("Módulo desactivado")
+            self.estado = True
+            self.Bomba.modulos_restantes -= 1
+        elif indirecta and self.regla_se_cumple(indirecta, cable_basico):
+            print("Regla INDIRECTA cumplida")
+            print("Módulo desactivado")
+            self.estado = True
+            self.Bomba.modulos_restantes -= 1
+        elif solo_cb and self.regla_se_cumple(solo_cb, cable_basico):
+            print("Regla SOLO_CB cumplida")
+            print("Módulo desactivado")
+            self.estado = True
+            self.Bomba.modulos_restantes -= 1
+        else:
+            print("Equivocación")
+            self.estado_equivocacion = True
+            self.Bomba.notificar_equivocacion()
 
-        if self.franja == "verde":
-            if self.cables[1].color == "Negro" and CableBasico.color == "Negro":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif self.cables[3].color == "Negro" and CableBasico.color == "Negro":
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            elif CableBasico.color == self.cables[0].color: 
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion()  
-
-        if self.franja == "blanca": 
-            if CableBasico.color == self.cables[1].color: 
-                self.estado = True
-                print("Modulo desactivado")
-                self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
-            else: 
-                print("Equivocación")
-                self.estado_equivocacion = True
-                self.Bomba.notificar_equivocacion() 
 
 class ModuloCablesComplejos(Modulo):
     def __init__(self, Bomba, pos:int) -> None:
@@ -183,13 +274,14 @@ class ModuloCablesComplejos(Modulo):
         self.C3 = None
         self.C4 = None
         self.rect_abs = None
-    
+        self.acciones = ["A", "B", "C1", "C2", "C3", "C4"]  # A=Cortar, B=No cortar, CX=Ir a x enunciado
+        self.reglas_config = None
+
     def dibujarFondo(self, pantalla):
         fondo = pygame.image.load("src/graphics/Fondos/fondo_cables_complejos.png")
         pantalla.blit(fondo, (0, 0))
     
     def dibujarElementos(self, pantalla, pantalla1, pantalla2):
-        
         self.C1 = ButtonC(pantalla1, pantalla2, 34, 70, self.cables[0], self, 20, 120)
         self.C2 = ButtonC(pantalla1, pantalla2, 56, 70, self.cables[1], self, 20, 120)
         self.C3 = ButtonC(pantalla1, pantalla2, 80, 70, self.cables[2], self, 20, 120)
@@ -234,8 +326,80 @@ class ModuloCablesComplejos(Modulo):
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
+    
+    def generar_reglas_congruentes(self):
+        reglas_por_conexion = {}
         
-            
+        # Para cada conexión (A y B)
+        for conexion in ["A", "B"]:
+            reglas = []
+            COLORES = ["Naranja", "Morado"]
+            ACCIONES = ["A", "B", "C1", "C2", "C3", "C4"]
+            colorelegidocolor = choice(COLORES)
+            COLORES.remove(colorelegidocolor)  # Evita repetir el color en la misma conexión
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)  # Evita repetir la acción en la misma conexión
+            reglaColor1 = {
+                "tipo": "color",
+                "color": colorelegidocolor,
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglas.append(reglaColor1)
+            reglacolor2 = {
+                "tipo": "color",
+                "color": COLORES[0],
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglas.append(reglacolor2)
+            reglaled = {
+                "tipo": "led",
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglaled)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            COLORES = ["Naranja", "Morado"]
+            colorelegidocolor = choice(COLORES)
+            COLORES.remove(colorelegidocolor)
+            reglacolor1led = {
+                "tipo": "color_led",
+                "color": colorelegidocolor,
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglacolor1led)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglacolor2led = {
+                "tipo": "color_led",
+                "color": COLORES[0],
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglacolor2led)
+            accionelegidacolor = choice(ACCIONES)
+            ACCIONES.remove(accionelegidacolor)
+            reglatodo = {   
+                "tipo": "todo",
+                "accion": accionelegidacolor,
+                **({"value_enunciado": choice([True, False])} if accionelegidacolor.startswith("C") else {})
+            }
+            reglas.append(reglatodo)
+            reglas_por_conexion[conexion] = reglas
+        reglas_por_conexion[conexion] = reglas
+        # Filtra y muestra solo las reglas que empiezan con C
+        reglas_c = {k: [r for r in v if r["accion"].startswith("C")] 
+                for k, v in reglas_por_conexion.items()}
+        print(f"Reglas que empiezan con C: {reglas_c}") #xxxxx
+        return reglas_por_conexion
+
     #Asignación de cables
     def agregar_cables(self):
         LISTA_COLORES = ["Naranja", "Morado", "Naranja y Morado", "Blanco"]
@@ -249,6 +413,7 @@ class ModuloCablesComplejos(Modulo):
                 self.cables.append(CableComplejo(LISTA_COLORES[indice_elegido], 46,0))
             elif i == 3:
                 self.cables.append(CableComplejo(LISTA_COLORES[indice_elegido], 70,0))
+        self.reglas_config = self.generar_reglas_congruentes()
 
     #Asignación de la conexión de los cables a A y B
     def conectar_cables(self):
@@ -271,76 +436,52 @@ class ModuloCablesComplejos(Modulo):
             self.validacion_cable(CableComplejo)
     
     #Se valida al cortar un cable
-    def validacion_cable(self, CableComplejo):
-        if CableComplejo.conectado_a == "A":
-            if CableComplejo.color == "Naranja y Morado" and CableComplejo.LED: 
-                print("Cable cortado con éxito")
-            elif CableComplejo.color == "Morado" and CableComplejo.LED:
-                print("Cable cortado con éxito")
-            elif CableComplejo.color == "Naranja" and CableComplejo.LED == False:
-                print("Cable cortado con éxito")
-            elif CableComplejo.LED and CableComplejo.color =="Blanco": 
-                print("Cable cortado con éxito")
-            else: 
-                print("Equivocación")
-                self.Bomba.notificar_equivocacion() 
-                self.estado_equivocacion = True
-
-        elif CableComplejo.conectado_a == "B":
-            if CableComplejo.color== "Naranja y Morado" and CableComplejo.LED == False:
-                print("Cable cortado con éxito")
-            elif CableComplejo.LED and CableComplejo.color== "Blanco":
-                print("Cable cortado con éxito")
-            elif CableComplejo.color == "Naranja" and CableComplejo.LED == False: 
-                print("Cable cortado con éxito")
-            else: 
-                print("Equivocación")
-                self.Bomba.notificar_equivocacion() 
-                self.estado_equivocacion = True
-
-        else: print("Error en la asignación de cables")
+    def validacion_cable(self, cable_complejo):
+        reglas = self.reglas_config.get(cable_complejo.conectado_a, [])
+        
+        # Revisa todas las reglas para la conexión del cable
+        for regla in reglas:
+            if regla["tipo"] == "color":
+                if cable_complejo.color == regla["color"]:
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
+            elif regla["tipo"] == "led":
+                if cable_complejo.LED == True:
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
+            elif regla["tipo"] == "color_led":
+                if (cable_complejo.color == regla["color"] and 
+                    cable_complejo.LED):
+                    if self.ejecutar_accion(regla["accion"], regla) == False:
+                        self.Bomba.notificar_equivocacion() 
+                        self.estado_equivocacion = True
+                    return 
     
-    #Se valida al presionar enviar
+    def ejecutar_accion(self, accion, regla):
+        if accion == "A":
+            return True  # Cortar el cable
+        elif accion == "B":
+            return False  # No cortar el cable
+        else:
+            if regla['value_enunciado'] == False:
+                return False
+
     def validacion_final(self):
-        for cable in self.cables: 
-            if cable.estado == False: 
-                if cable.conectado_a == "A":
-                    if cable.color== "Naranja y Morado" and cable.LED == False:
+        for cable in self.cables:
+            if cable.estado == False:
+                reglas = self.reglas_config.get(cable.conectado_a, [])
+                for regla in reglas:
+                    color_ok = ("color" not in regla) or (cable.color == regla["color"])
+                    led_ok = ("LED" not in regla) or (cable.LED == regla["LED"])
+                    if color_ok and led_ok:
                         self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
+                        self.Bomba.notificar_equivocacion()
                         return "Equivocación"
-
-                    elif cable.LED and cable.color== "Blanco":
-                        self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
-                        return "Equivocación"
-        
-                    elif cable.color == "Naranja" and cable.LED == False: 
-                        self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
-                        return "Equivocación"
-                        
-                    else: 
-                        print("Cable no cortado correcto")
-                elif cable.conectado_a == "B":
-                    if cable.color== "Naranja y Morado" and cable.LED == False:
-                        self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
-                        return "Equivocación"
-
-                    elif cable.LED and cable.color== "Blanco":
-                        self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
-                        return "Equivocación"
-                        
-                    elif cable.color == "Naranja" and cable.LED == False: 
-                        self.estado_equivocacion = True
-                        self.Bomba.notificar_equivocacion() 
-                        return "Equivocación"
-                
-                    else: 
-                        print("Cable no cortado correcto")
-        
+                print("Cable no cortado correcto")
         print("Modulo desactivado")
         self.Bomba.modulos_restantes = self.Bomba.modulos_restantes - 1
         self.estado = True
@@ -1025,5 +1166,4 @@ class Nodo:
                 self.icono_numero = pygame.image.load("src/graphics/Modulo_Memoria/num4_3.png")
             elif self.posicion == 4:
                 self.icono_numero = pygame.image.load("src/graphics/Modulo_Memoria/num4_4.png")
-                
-            
+

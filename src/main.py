@@ -11,6 +11,13 @@ from juego.listadoble import *
 from juego.frontendfunctions import *
 import time
 
+import asyncio
+import threading
+import json
+
+import asyncio
+import websockets
+
 pygame.init()
 screen = pygame.display.set_mode((1000,562))
 pygame.display.set_caption("EcoStrike")
@@ -28,8 +35,6 @@ GOLDEN = pygame.Color('#fcbf49')
 SILVER = pygame.Color('#dbd4d3')
 font = pygame.font.Font("src/font/Pixeled.ttf", 20)
 font1 = pygame.font.Font("src/font/Pixeled.ttf", 40)
-
-#background = pygame.image.load('graphics/background.png')
 
 frame = pygame.Surface((680,460))
 module1 = pygame.Surface((202,202))
@@ -51,6 +56,90 @@ timer.fill(VANILLA)
 bombas_desactivadas = 6
 
 click = False
+
+HOST = '192.168.1.26'  # Cambiar por IP real del host
+PORT = 8765
+
+responses = []
+resp_bas = None
+resp_comp = None
+global bombita 
+
+
+async def rules(simple, complejo):
+    url = "ws://192.168.1.26:8765"
+    
+    try:
+        async with websockets.connect(url, ping_interval=None) as websocket:
+            print("🔌 Connected to server")
+            
+            # Crear una tarea en segundo plano para recibir mensajes
+            async def receive_messages():
+                while True:
+                    try:
+                        responses = []
+                        response = await websocket.recv()
+                        responses.append(response)
+                        
+                        # Guardar las respuestas en las variables globales
+                        if len(responses) == 1:
+                            resp_bas = response
+                        elif len(responses) == 2:
+                            resp_comp = response
+                            
+                        print("\n📥 Received instructions:")
+                        print(f"{response}")
+                        print("-" * 50 + "\n")
+                        
+                        # Si recibimos señal de finalización
+                        if response == "COMPLETED" or response == "ERROR":
+                            return
+                            
+                    except websockets.exceptions.ConnectionClosed:
+                        print("Connection closed by server")
+                        return
+                    except Exception as e:
+                        print(f"Error receiving message: {e}")
+                        return
+            
+            # Enviar reglas y mantener conexión
+            try:
+                # Primero enviar todas las reglas
+                for key, value in simple.items():
+                    await websocket.send("\""+value+"\"")
+                    await asyncio.sleep(0.1)  # Pequeña pausa entre envíos
+                
+                for key, value in complejo.items():
+                    await websocket.send("\""+value+"\"")
+                    await asyncio.sleep(0.1)  # Pequeña pausa entre envíos
+                
+                # Iniciar tarea de recepción
+                receiver_task = asyncio.create_task(receive_messages())
+                
+                # Esperar a que termine la tarea de recepción
+                await receiver_task
+                
+            except websockets.exceptions.ConnectionClosed:
+                print("Connection closed while sending")
+            except Exception as e:
+                print(f"Error while sending: {e}")
+                
+    except websockets.exceptions.ConnectionError:
+        print("❌ Could not connect to the server")
+    except Exception as e:
+        print(f"❌ An error occurred: {e}")
+        
+
+# Create a function to run the asyncio event loop in a separate thread
+def run_async_loop(loop, rules_coro):
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(rules_coro)
+    except Exception as e:
+        print(f"Error in async loop: {e}")
+    finally:
+        loop.close()
+
 tutorial_shown = False  # Variable global para controlar si ya se mostró el tutorial
 def new_menu():
     global tutorial_shown
@@ -86,8 +175,8 @@ def new_menu():
             # Mover la lógica de clicks aquí dentro
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if hitboxplaybutton.collidepoint(pos):
-                    # opcJugar()
-                    show_manual()
+                    crear_bomba()
+                    opcJugar()
                 elif hitboxcreditsbutton.collidepoint(pos):
                     album()
                 elif hitboxquitbutton.collidepoint(pos):
@@ -113,37 +202,7 @@ def new_menu():
 
         clock.tick(60)
         pygame.display.update()
-def main_menu():
-    while True:
-        screen.fill(GOLDEN)
-        image = pygame.image.load("src/graphics/Bynary Bomb logo nobg.png")
-        resized_image = pygame.transform.scale(image, (300, 300))
-        screen.blit(resized_image, (350, 50))
-        play_button = Button(screen, 100, 430, 200, 50, "JUGAR", (255,0,0))
-        play_button.draw()
-        credits_button = Button(screen, 400, 430, 200, 50, "CRÉDITOS", (255,0,0))
-        credits_button.draw()
-        exit_button = Button(screen, 700, 430, 200, 50, "SALIR", (255,0,0))
-        exit_button.draw()
 
-        click = False
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    click = True
-            play_button.handle_event(event, lambda: opcJugar())
-            credits_button.handle_event(event, lambda: album())
-            exit_button.handle_event(event, lambda: exit())
-
-        pygame.display.update()
-        clock.tick(60)
 click = False
 
 def opcJugar():
@@ -184,10 +243,30 @@ def opcJugar():
 
         pygame.display.update()
         clock.tick(60)
+        
+def crear_bomba():
+    
+    bombita = Bomba(300, 3, 3, 10)
+    bombita.asignar_modulos() # REGLAS
+    for modulo in bombita.modulos:
+        if modulo.nombre == "Cables Básicos":
+            reglasBasico = modulo.reglas_config
+            reglasBasicoOrganizado = organizar_json_cables_simples(reglasBasico)
+            
+        elif modulo.nombre == "Cables Complejos":
+            reglasCompleja = modulo.reglas_config
+            reglasComplejaOrganizado = organizar_json_cables_complejos(reglasCompleja)
+    # Crear un loop de eventos asyncio
+    new_loop = asyncio.new_event_loop()
+    rules_thread = threading.Thread(
+        target=run_async_loop,
+        args=(new_loop, rules(reglasBasicoOrganizado, reglasComplejaOrganizado))
+    )
+    rules_thread.daemon = True  # Thread will close when main program exits
+    rules_thread.start()
 
 def create_room():
     partida_iniciada = False
-    
     ip = network.start_server()
     network.connect_to_server_as_host()
     fondo = pygame.image.load("src/graphics/bombsettings/bombsettingsbg.png")
@@ -511,15 +590,19 @@ def show_manual():
     menu_button = Button(screen, 10, 10, 33, 33, "x", (0,0,0), 0)
     menu_button.draw()
 
+    
     texto1 = ['Para C1: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El cambio climático solo afecta a las regiones polares.\nSolo los gobiernos pueden hacer algo frente al cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Las emisiones de dióxido de carbono son la principal causa del cambio climático.\nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos.\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C4: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nEl plástico es biodegradable en menos de 10 años.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La energía nuclear no emite gases de efecto invernadero durante su operación:\nLas emisiones de dióxido de carbono son la principal causa del cambio climático.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- Los océanos absorben parte del CO₂ emitido por los humanos:\nLos aerosoles naturales tienen un impacto mayor que el calentamiento global.\nVerdadero (Hacer A)\nFalso (Hacer B)', 'Para C3: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLos aerosoles naturales no tienen ningún impacto en el clima. \nLas emisiones de dióxido de carbono son la principal causa del cambio climático. \nEl calentamiento global solo afecta a las regiones polares. \nSolo los gobiernos pueden hacer algo frente al cambio climático. \nLa deforestación contribuye al cambio climático. \nReciclar papel ayuda a conservar los árboles. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energías renovables no generan ningún tipo de contaminación. \nEl plástico es biodegradable en menos de 10 años. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLos océanos absorben parte del CO₂ emitido por los humanos. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nLas energias renovables no generan ningún tipo de contaminación. \nEl deshielo de los polos puede elevar el n', 'Para C2: - Si el reciclaje no tiene ningún beneficio para el medio ambiente: \nLas energías renovables no generan ningún tipo de contaminación.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- El calentamiento global es un mito creado por científicos:\nEl deshielo de los polos puede elevar el nivel del mar.\nVerdadero (Hacer A)\nFalso (Hacer B)\n- La deforestación contribuye al cambio climático:\nLos aerosoles naturales no tienen ningún impacto en el clima.\nVerdadero (Hacer A)\nFalso (Hacer B)']
     texto2 =texto1
+    
+    # texto1 = resp_bas
+    # texto2 = resp_comp
     
     texto1 = lista_a_texto(texto1)
     texto2 = lista_a_texto(texto2)
     
     # Crear dos rectángulos para el texto
     rect_texto1 = pygame.Rect(75, 70, 400, 425)  # Rectángulo izquierdo
-    rect_texto2 = pygame.Rect(555, 75, 360, 425)  # Rectángulo derecho
+    rect_texto2 = pygame.Rect(555, 75, 360, 365)  # Rectángulo derecho
     
     # Dividir el texto en líneas
     lineas_texto1 = texto1.split('\n')
@@ -527,14 +610,92 @@ def show_manual():
 
     scroll_y = 0
     scroll_speed = 20
+    
+    # Nuevo botón para ver diagrama
+    ver_diagrama_button = Button(screen, 575, 450, 300, 45, "Ver Tabla", (0,0,0), 12)
+    mostrar_diagrama = False
+    
+    # Superficie para el diagrama superpuesto
+    diagrama_surface = pygame.Surface((800, 400))
+    diagrama_surface.fill((0, 0, 0))  # Color negro
+    diagrama_rect = diagrama_surface.get_rect(center=(500, 281))  # Centrado en pantalla
+
+
+    # Configuración de la tabla
+    tabla_font = pygame.font.Font("src/font/Montserrat-Regular.ttf", 14)
+    encabezados = ["Naranja", "Morado", "LED", "Conectado a", "Acción"]
+    num_filas = 13  # 1 fila de encabezado + 8 filas de datos
+    num_columnas = 5
+    celda_ancho = 155
+    celda_alto = 30
+    tabla_ancho = ( celda_ancho * num_columnas ) +2
+    tabla_alto = (celda_alto * num_filas) + 2
+    
+    # Crear superficie para la tabla centrada en el diagrama
+    tabla_surface = pygame.Surface((tabla_ancho, tabla_alto))
+    tabla_surface.fill((0, 0, 0))  # Fondo negro
+    tabla_rect = tabla_surface.get_rect(center=(500, 281))
+    
+    def dibujar_tabla():
+        # Dibujar líneas de la tabla
+        for i in range(num_filas + 1):
+            pygame.draw.line(tabla_surface, (255, 255, 255), 
+                           (0, i * celda_alto), 
+                           (tabla_ancho, i * celda_alto), 2)
+        for j in range(num_columnas + 1):
+            pygame.draw.line(tabla_surface, (255, 255, 255), 
+                           (j * celda_ancho, 0), 
+                           (j * celda_ancho, tabla_alto), 2)
+        
+        # Dibujar encabezados
+        for col, texto in enumerate(encabezados):
+            surf = tabla_font.render(texto, True, (255, 255, 255))
+            rect = surf.get_rect(center=(col * celda_ancho + celda_ancho//2, celda_alto//2))
+            tabla_surface.blit(surf, rect)
+        
+        for modulo in bombita.modulos:
+            if modulo.nombre == "Cables Complejos":
+                reglasCompleja = modulo.reglas_config
+                
+        filas = formatear_reglas_para_tabla(reglasCompleja)
+
+        for i, fila in enumerate(filas):
+                llenar_fila(i, fila)
+                
+    def llenar_fila(fila, datos):
+        for col, texto in enumerate(datos):
+            surf = tabla_font.render(str(texto), True, (255, 255, 255))
+            rect = surf.get_rect(center=(col * celda_ancho + celda_ancho//2, 
+                                       (fila + 1) * celda_alto + celda_alto//2))
+            tabla_surface.blit(surf, rect)
+
+    # Dibujar la tabla base
+    dibujar_tabla()
 
     while True:
+        screen.blit(menubg, (0,0))
         screen.blit(fondo_manual, (0,0))
         
         # Dibuja los textos con scroll
         altura_total1 = varias_lineas_con_scroll(screen, font_manual, lineas_texto1, rect_texto1, scroll_y, header_text="MANUAL DEL ACTUADOR", header_font=header_font, subheader_text="Cables Simples"  ,subheader_font=subheader_font)
         altura_total2 = varias_lineas_con_scroll(screen, font_manual, lineas_texto2, rect_texto2, scroll_y, None, None, subheader_text="Cables Complejos", subheader_font=subheader_font)
-        
+        # Dibuja el botón de ver diagrama
+        ver_diagrama_button.draw()
+
+        # Si el diagrama está activo, dibújalo sobre todo
+        if mostrar_diagrama:
+            # Capa semi-transparente de fondo
+            s = pygame.Surface((1000,562))
+            s.set_alpha(128)
+            s.fill((0,0,0))
+            screen.blit(s, (0,0))
+            
+            # Dibuja el diagrama
+            screen.blit(diagrama_surface, diagrama_rect)
+            
+            # Dibuja la tabla
+            screen.blit(tabla_surface, tabla_rect)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -545,6 +706,14 @@ def show_manual():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     menu_button.handle_event(event, lambda: new_menu())
+                    if mostrar_diagrama:
+                        # Clic fuera del diagrama lo cierra
+                        if not diagrama_rect.collidepoint(event.pos):
+                            mostrar_diagrama = False
+                    else: 
+                        menu_button.handle_event(event, lambda: new_menu())
+                        if ver_diagrama_button.rect.collidepoint(event.pos):
+                            mostrar_diagrama = True
                 # Scroll con rueda del mouse
                 elif event.button == 4:  # Scroll arriba
                     scroll_y = max(0, scroll_y - scroll_speed)
@@ -616,6 +785,92 @@ def creditos():
 
         pygame.display.update()
         clock.tick(60)
+def organizar_json_cables_complejos(data):
+
+    def agrupar_por_acciones_c(data):
+        # Diccionario para almacenar las agrupaciones por acción
+        agrupaciones = {}
+        
+        # Procesar cada letra (A, B, etc.)
+        for letra, entradas in data.items():
+            # Filtrar solo entradas con acciones que empiecen por 'C'
+            entradas_c = [entrada for entrada in entradas if entrada.get('accion', '').startswith('C')]
+            
+            # Agrupar por acción
+            for entrada in entradas_c:
+                accion = entrada['accion']
+                
+                # Inicializar la agrupación si no existe
+                if accion not in agrupaciones:
+                    agrupaciones[accion] = {}
+                
+                # Agregar la entrada a la letra correspondiente
+                if letra not in agrupaciones[accion]:
+                    agrupaciones[accion][letra] = []
+                
+                agrupaciones[accion][letra].append(entrada)
+        
+        # Convertir cada agrupación a string JSON
+        jsons_agrupados = {}
+        
+        for accion, datos_accion in agrupaciones.items():
+            # Crear el JSON para esta agrupación
+            json_string = json.dumps(datos_accion, separators=(',', ':'), ensure_ascii=False)
+            # Agregar escapes a las comillas
+            json_escaped = json_string.replace('"', r'\"')
+            jsons_agrupados[accion] = json_escaped
+        
+        return jsons_agrupados
+
+    # Aplicar la función
+    jsons_agrupados = agrupar_por_acciones_c(data)
+    return(jsons_agrupados)
+
+def organizar_json_cables_simples(data):
+    # Orden deseado para los tipos
+    orden_tipos = ['condicional', 'directa', 'indirecta', 'solo_cb']
+
+    # Función para reorganizar una lista según el orden de tipos
+    def reorganizar_por_tipo(lista):
+        # Crear un diccionario para agrupar por tipo
+        por_tipo = {}
+        for item in lista:
+            tipo = item['tipo']
+            if tipo not in por_tipo:
+                por_tipo[tipo] = []
+            por_tipo[tipo].append(item)
+        
+        # Reorganizar según el orden deseado
+        lista_ordenada = []
+        for tipo in orden_tipos:
+            if tipo in por_tipo:
+                lista_ordenada.extend(por_tipo[tipo])
+        
+        return lista_ordenada
+
+    # Aplicar la reorganización a cada clave del diccionario
+    data_reorganizado = {}
+    for clave, lista in data.items():
+        data_reorganizado[clave] = reorganizar_por_tipo(lista)
+
+    # Diccionario para guardar cada color como string JSON
+    jsons_separados = {}
+
+    # Separar cada color en su propio string JSON
+    for color, datos in data_reorganizado.items():
+        # Crear el contenido JSON para este color
+        json_color = {color: datos}
+        
+        # Convertir a string JSON
+        json_string = json.dumps(json_color, ensure_ascii=False)
+        json_escaped = json_string.replace('"', r'\"')
+        # Guardar en el diccionario
+        jsons_separados[color] = json_escaped
+    return jsons_separados
+
+
+        
+
 
 def game():
     # Duración del temporizador en segundos
@@ -625,14 +880,9 @@ def game():
     start_time = time.time()
     control = [False]
     c=0
-
-    global a1 #errores
-    global a2 #modulos
     a1 = 2
     a2 = 3
     running = True
-    bombita = Bomba(duration, a1, a2, 10)
-    bombita.asignar_modulos()
 
     pos = [module1, module2, module3, module4, module5]
 
