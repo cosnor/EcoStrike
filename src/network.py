@@ -8,7 +8,7 @@ MAX_PLAYERS = 4
 connected_count = 1
 player_number = None
 
-clients = []  # Lista de (conn, addr) o (conn, addr, player_number)
+clients = []  # Ahora será [(conn, addr)]
 server_socket = None
 lock = threading.Lock()
 
@@ -36,6 +36,7 @@ def handle_client(conn, addr):
     # Enviar al nuevo cliente su número
     try:
         conn.send(f"player:{player_number}".encode())
+        print(f"[🎮] Jugador {player_number} asignado a {addr}")
     except:
         pass
 
@@ -59,12 +60,14 @@ def handle_client(conn, addr):
         broadcast_connected_players()
 
 def broadcast_connected_players():
-    count = len(clients)
-    for conn, _, _ in clients:
-        try:
-            conn.send(f"update:{count}".encode())
-        except:
-            pass
+    with lock:
+        for idx, (conn, _, _) in enumerate(clients):
+            try:
+                conn.send(f"player:{idx+1}".encode())
+                conn.send(f"update:{len(clients)}".encode())
+            except:
+                pass
+
 
 
 def get_connected_count():
@@ -72,21 +75,29 @@ def get_connected_count():
 
 
 def assign_roles():
-    bomb_index = random.randint(0, MAX_PLAYERS - 1)
-    print(f"[🎲] Jugador {bomb_index} tendrá la bomba.")
+    with lock:
+        if len(clients) == 0:
+            print("[❌] No hay jugadores conectados.")
+            return
 
-    for idx, conn in enumerate(clients):
-        role = "bomb" if idx == bomb_index else "manual"
-        try:
-            conn.send(role.encode())
-        except:
-            print(f"[❌] Error enviando rol al jugador {idx}")
-    # if server_socket:
-    #     try:
-    #         server_socket.close()
-    #         print("[🛑] Servidor cerrado después de asignar roles.")
-    #     except:
-    #         pass
+        bomb_index = random.randint(0, len(clients) - 1)
+        print(f"[🎲] Jugador {bomb_index + 1} tendrá la bomba.")
+
+        for idx, (conn, addr, _) in enumerate(clients):
+            role = "bomb" if idx == bomb_index else "manual"
+            try:
+                conn.send(role.encode())
+            except Exception as e:
+                print(f"[❌] Error enviando rol al jugador {idx + 1}: {e}")
+
+        # Cierra el servidor si quieres evitar más conexiones
+        if server_socket:
+            try:
+                server_socket.close()
+                print("[🛑] Servidor cerrado después de asignar roles.")
+            except Exception as e:
+                print(f"[❌] Error cerrando servidor: {e}")
+
 
 def trigger_role_assignment():
     if len(clients) < 2:

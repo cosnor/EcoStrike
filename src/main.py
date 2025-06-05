@@ -365,9 +365,6 @@ def room(ip):
             if player_num is not None and i+1 == player_num:
                 label += " (You)"
             jugadores_conectados.append(label)
-
-        dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
-
         dibujar_jugadores(screen, font2, jugadores_conectados, 635, 200)
 
         for event in pygame.event.get():
